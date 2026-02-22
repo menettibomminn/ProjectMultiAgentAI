@@ -1,0 +1,151 @@
+# =============================================================================
+# mcp_config.yml — Configurazione MCP per ProjectMultiAgentAI
+# =============================================================================
+# Versione: 1.0.0
+# Ultimo aggiornamento: 2026-02-22
+# Owner: platform-team
+# =============================================================================
+
+project:
+  name: "ProjectMultiAgentAI"
+  version: "1.0.0"
+  description: "Multi-agent system for Google Sheets operations"
+
+# --- Modelli AI ---
+models:
+  default: "claude-sonnet-4-6"
+  agents:
+    frontend-agent:
+      model: "claude-sonnet-4-6"
+      temperature: 0.2
+      max_tokens: 4096
+    backend-agent:
+      model: "claude-sonnet-4-6"
+      temperature: 0.1
+      max_tokens: 4096
+    sheets-agent:
+      model: "claude-haiku-4-5"
+      temperature: 0.0
+      max_tokens: 2048
+    auth-agent:
+      model: "claude-haiku-4-5"
+      temperature: 0.0
+      max_tokens: 1024
+    metrics-agent:
+      model: "claude-haiku-4-5"
+      temperature: 0.0
+      max_tokens: 2048
+    controller:
+      model: "claude-sonnet-4-6"
+      temperature: 0.0
+      max_tokens: 4096
+    orchestrator:
+      model: "claude-haiku-4-5"
+      temperature: 0.0
+      max_tokens: 2048
+
+# --- Google Sheets API ---
+google_sheets:
+  auth:
+    default_method: "oauth_user"
+    fallback_method: "service_account"
+    scopes:
+      - "https://www.googleapis.com/auth/spreadsheets"
+      - "https://www.googleapis.com/auth/drive.file"
+  service_account:
+    key_path: "secrets/vault/sa_key.enc"
+    allowed_jobs:
+      - "nightly_sync"
+      - "weekly_report_generation"
+      - "monthly_aggregation"
+    impersonation_required: true
+  oauth:
+    client_secret_path: "secrets/vault/client_secret.enc"
+    token_storage: "secrets/vault/tokens/"
+    token_encryption: "AES-256-GCM"
+    token_rotation_days: 30
+
+# --- Team Configuration ---
+teams:
+  sheets-team:
+    lead: "sheets-team-lead"
+    workers:
+      - "sheets-agent"
+    inbox: "controller/inbox/sheets-team/"
+    outbox: "controller/outbox/sheets-team/"
+  frontend-team:
+    lead: "frontend-team-lead"
+    workers:
+      - "frontend-agent"
+    inbox: "controller/inbox/frontend-team/"
+    outbox: "controller/outbox/frontend-team/"
+  backend-team:
+    lead: "backend-team-lead"
+    workers:
+      - "backend-agent"
+    inbox: "controller/inbox/backend-team/"
+    outbox: "controller/outbox/backend-team/"
+
+# --- Locking ---
+locking:
+  directory: "locks/"
+  timeout_seconds: 120
+  max_retries: 5
+  backoff:
+    base_seconds: 2
+    max_seconds: 60
+    strategy: "exponential_with_jitter"
+
+# --- Audit & Logging ---
+audit:
+  log_path: "ops/logs/audit.log"
+  audit_dir: "ops/audit/"
+  idempotency_log: "ops/logs/idempotency.log"
+  append_only: true
+  hash_algorithm: "SHA256"
+
+# --- Security ---
+security:
+  secrets_dir: "secrets/vault/"
+  encryption: "AES-256-GCM"
+  master_key_storage: "os_keyring"
+  git_ignored:
+    - "secrets/"
+    - "*.pem"
+    - "*.key"
+    - "token.json"
+    - "credentials.json"
+    - "service-account*.json"
+  token_policy:
+    rotation_days: 30
+    minimum_scopes: true
+    store: "local_vault_or_os_keyring"
+    never_commit: true
+
+# --- Human-in-the-Loop ---
+human_approval:
+  enabled: true
+  level: "team"  # per-team candidate changes
+  timeout_minutes: 60
+  escalation: "controller"
+  sensitive_operations:
+    - "delete_sheet"
+    - "bulk_write_>100_cells"
+    - "permission_change"
+
+# --- Metrics & SLO ---
+metrics:
+  collection_interval_seconds: 300
+  collector: "ops/collect_metrics.sh"
+  cost_estimator: "ops/cost_estimator.py"
+  slo:
+    sheets-team:
+      max_latency_p95_ms: 3000
+      max_error_rate_percent: 1
+      min_throughput_tasks_per_min: 5
+    frontend-team:
+      max_latency_p95_ms: 2000
+      max_error_rate_percent: 2
+    backend-team:
+      max_latency_p95_ms: 500
+      max_error_rate_percent: 1

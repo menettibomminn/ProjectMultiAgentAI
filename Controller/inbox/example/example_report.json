@@ -1,0 +1,17 @@
+{
+  "agent": "sheets-agent",
+  "timestamp": "2026-02-22T10:33:00Z",
+  "task_id": "sh-042",
+  "status": "success",
+  "summary": "Cell B5 updated from 100 to 150 on Sheet1 for employee emp_042",
+  "metrics": {
+    "duration_ms": 820,
+    "tokens_in": 150,
+    "tokens_out": 200,
+    "cost_eur": 0.0005
+  },
+  "artifacts": [
+    "diff_B5_100_to_150.json"
+  ],
+  "next_actions": []
+}

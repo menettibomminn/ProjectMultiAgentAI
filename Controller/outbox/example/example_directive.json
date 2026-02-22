@@ -1,0 +1,16 @@
+{
+  "directive_id": "dir-ctrl-050-001",
+  "target_agent": "sheets-agent",
+  "command": "write_range",
+  "parameters": {
+    "sheet_id": "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms",
+    "range": "Sheet1!B5:B5",
+    "values": [["150"]],
+    "auth_context": {
+      "type": "oauth_user",
+      "user_id": "emp_042",
+      "token_ref": "vault://tokens/emp_042"
+    }
+  },
+  "signature": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

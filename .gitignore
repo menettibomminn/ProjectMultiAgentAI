@@ -11,3 +11,24 @@ obj/
 
 # temp
 *.tmp
+
+# Secrets & credentials — NEVER commit
+.env
+.env.*
+secrets/
+*.pem
+*.key
+credentials.json
+token.json
+service-account*.json
+
+# Lock files (runtime)
+locks/
+
+# Audit logs (local only)
+ops/logs/
+ops/audit/
+
+# OS
+Thumbs.db
+.DS_Store
