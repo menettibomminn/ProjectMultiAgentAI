@@ -1,0 +1,13 @@
+# Visual Studio
+.vs/
+
+# build
+bin/
+obj/
+
+# user files
+*.user
+*.suo
+
+# temp
+*.tmp
