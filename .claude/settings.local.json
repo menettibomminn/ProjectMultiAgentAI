@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(cd /c/Users/diego/source/repos/menettibomminn/ProjectMultiAgentAI && echo \"=== HEALTH.md ===\" && find . -name \"HEALTH.md\" -not -path './.git/*' -not -path './Agents/frontendAgent/*' -not -path './Agents/backendAgent/*' -not -path './Agents/metricsAgent/*' | sort && echo \"\" && echo \"=== Controller dir \\(no MISTAKE, still has HEALTH from before\\) ===\" && ls Controller/*.md 2>/dev/null)"
     ]
   }
 }
