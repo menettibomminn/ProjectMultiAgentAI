@@ -54,45 +54,36 @@ ProjectMultiAgentAI/
 │   ├── frontend-agent/      # UI dashboard agent
 │   │   ├── CLAUDE.md        # Ruolo, skill, prompt, hooks
 │   │   ├── TODO.md          # Task checklist
-│   │   └── ARCHITECTURE.md  # Architettura componente
+│   │   ├── ARCHITECTURE.md  # Architettura componente
+│   │   ├── CHANGELOG.md     # Registro azioni (append-only)
+│   │   ├── HEALTH.md        # Stato salute agente (append-only)
+│   │   └── MISTAKE.md       # Registro errori (append-only)
 │   ├── backend-agent/       # Business logic agent
-│   │   ├── CLAUDE.md
-│   │   ├── TODO.md
-│   │   └── ARCHITECTURE.md
 │   ├── sheets-agent/        # Google Sheets API agent
-│   │   ├── CLAUDE.md
-│   │   ├── TODO.md
-│   │   └── ARCHITECTURE.md
 │   ├── auth-agent/          # Authentication & authorization
-│   │   └── CLAUDE.md
 │   ├── metrics-agent/       # Metrics collection & SLO
-│   │   └── CLAUDE.md
 │   └── teams/
 │       └── sheets-team/     # Team-level coordination
-│           ├── CLAUDE.md
-│           └── ARCHITECTURE.md
 ├── controller/
 │   ├── CLAUDE.md
 │   ├── TODO.md
 │   ├── ARCHITECTURE.md      # Inbox/outbox, locking, audit
 │   ├── HEALTH.md
+│   ├── CHANGELOG.md
 │   ├── inbox/               # Report dagli agenti (append-only)
-│   │   └── {team}/{agent}/{ts}_report.json
 │   └── outbox/              # Direttive verso agenti
-│       └── {team}/{agent}/{ts}_directive.json
 ├── orchestrator/
 │   ├── STATE.md             # Single Source of Truth
 │   ├── CLAUDE.md
-│   └── ARCHITECTURE.md
+│   ├── ARCHITECTURE.md
+│   ├── CHANGELOG.md
+│   ├── HEALTH.md
+│   └── MISTAKE.md
 ├── ops/
 │   ├── collect_metrics.sh   # Script raccolta metriche
-│   ├── cost_estimator.py    # Stima costi per modello
-│   ├── logs/                # Log di sistema (gitignored)
-│   │   └── audit.log
-│   └── audit/               # Audit trail dettagliato (gitignored)
+│   └── cost_estimator.py    # Stima costi per modello
 ├── infra/
 │   └── mcp_config.yml       # Configurazione MCP centrale
-├── locks/                   # Lock files runtime (gitignored)
 ├── README.md
 └── CONTRIBUTING.md
 ```
