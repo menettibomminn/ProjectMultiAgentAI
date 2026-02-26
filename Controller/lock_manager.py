@@ -41,6 +41,7 @@ class LockManager:
         self._max_retries = max_retries
         self._backoff_base = backoff_base
         self._held: dict[str, Path] = {}  # resource_id -> lock file path
+        self._new_held: dict[str, Path] = {}  # resource-centric locks
 
     def acquire(self, resource_id: str, task_id: str) -> None:
         """Acquire a lock for *resource_id*.
@@ -77,6 +78,105 @@ class LockManager:
     def is_held(self, resource_id: str) -> bool:
         """Check if we currently hold a lock for *resource_id*."""
         return resource_id in self._held
+
+    # ------------------------------------------------------------------
+    # Resource-centric lock API (new)
+    # ------------------------------------------------------------------
+
+    def acquire_lock(
+        self,
+        resource_id: str,
+        agent_id: str,
+        team_id: str = "",
+    ) -> bool:
+        """Acquire a resource-centric lock.
+
+        File: locks/{resource_id}.lock (no ctrl_ prefix).
+        Returns True if the lock was acquired, False if held by another agent.
+        Stale locks (older than timeout_seconds) are overridden.
+        """
+        self._locks_dir.mkdir(parents=True, exist_ok=True)
+        lock_path = self._new_lock_path(resource_id)
+        now = datetime.now(timezone.utc)
+        payload: dict[str, Any] = {
+            "resource_id": resource_id,
+            "agent_id": agent_id,
+            "team_id": team_id,
+            "timestamp": now.isoformat(),
+            "status": "locked",
+        }
+
+        if not lock_path.exists():
+            if self._write_lock(lock_path, payload):
+                self._new_held[resource_id] = lock_path
+                return True
+            return False
+
+        # Read existing lock
+        try:
+            with portalocker.Lock(
+                str(lock_path),
+                mode="r",
+                timeout=1,
+                flags=portalocker.LOCK_SH | portalocker.LOCK_NB,
+            ) as fh:
+                existing = json.loads(fh.read())
+        except (portalocker.LockException, json.JSONDecodeError, OSError):
+            if self._write_lock(lock_path, payload):
+                self._new_held[resource_id] = lock_path
+                return True
+            return False
+
+        # Same agent can re-acquire
+        if existing.get("agent_id") == agent_id:
+            if self._write_lock(lock_path, payload):
+                self._new_held[resource_id] = lock_path
+                return True
+            return False
+
+        # Check staleness
+        lock_ts = datetime.fromisoformat(
+            existing.get("timestamp", "2000-01-01T00:00:00+00:00")
+        )
+        age = (now - lock_ts).total_seconds()
+        if age > self._timeout:
+            if self._write_lock(lock_path, payload):
+                self._new_held[resource_id] = lock_path
+                return True
+            return False
+
+        return False
+
+    def release_lock(self, resource_id: str) -> bool:
+        """Release a resource-centric lock. Returns True if released."""
+        lock_path = self._new_held.pop(resource_id, None)
+        if lock_path is None:
+            lock_path = self._new_lock_path(resource_id)
+        if lock_path.exists():
+            lock_path.unlink(missing_ok=True)
+            return True
+        return False
+
+    def check_lock(self, resource_id: str) -> dict[str, Any] | None:
+        """Check the state of a resource-centric lock. Returns lock data or None."""
+        lock_path = self._new_lock_path(resource_id)
+        if not lock_path.exists():
+            return None
+        try:
+            with portalocker.Lock(
+                str(lock_path),
+                mode="r",
+                timeout=1,
+                flags=portalocker.LOCK_SH | portalocker.LOCK_NB,
+            ) as fh:
+                return json.loads(fh.read())  # type: ignore[no-any-return]
+        except (portalocker.LockException, json.JSONDecodeError, OSError):
+            return None
+
+    def _new_lock_path(self, resource_id: str) -> Path:
+        """Lock file path for resource-centric locks (no ctrl_ prefix)."""
+        safe_id = resource_id.replace("/", "_").replace("\\", "_")
+        return self._locks_dir / f"{safe_id}.lock"
 
     def _lock_path(self, resource_id: str) -> Path:
         safe_id = resource_id.replace("/", "_").replace("\\", "_")

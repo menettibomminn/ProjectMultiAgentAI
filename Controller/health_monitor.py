@@ -173,6 +173,150 @@ class HealthMonitor:
         return out_path
 
     # ------------------------------------------------------------------
+    # Extended monitoring
+    # ------------------------------------------------------------------
+
+    def check_all_extended(self) -> dict[str, Any]:
+        """Run extended health check: agents + locks + inbox + outbox + audit.
+
+        Returns a dict with:
+            status, active_agents, active_locks, errors[], timestamp
+        """
+        now = datetime.now(timezone.utc)
+        errors: list[str] = []
+        active_agents: list[str] = []
+        active_locks: list[dict[str, Any]] = []
+
+        # Agent health
+        summary = self.check_all()
+        active_agents = summary.healthy + summary.degraded
+
+        # Lock scan
+        try:
+            active_locks = self._scan_locks()
+        except Exception as exc:
+            errors.append(f"lock_scan_error: {exc}")
+
+        # Inbox check
+        try:
+            inbox_errors = self._check_inbox()
+            errors.extend(inbox_errors)
+        except Exception as exc:
+            errors.append(f"inbox_check_error: {exc}")
+
+        # Outbox check
+        try:
+            outbox_errors = self._check_outbox()
+            errors.extend(outbox_errors)
+        except Exception as exc:
+            errors.append(f"outbox_check_error: {exc}")
+
+        # Audit check
+        try:
+            audit_errors = self._check_audit()
+            errors.extend(audit_errors)
+        except Exception as exc:
+            errors.append(f"audit_check_error: {exc}")
+
+        # Determine overall status
+        if errors:
+            status = "degraded"
+        elif summary.down:
+            status = "down"
+        elif summary.degraded:
+            status = "degraded"
+        elif summary.healthy:
+            status = "healthy"
+        else:
+            status = "unknown"
+
+        return {
+            "status": status,
+            "active_agents": active_agents,
+            "active_locks": active_locks,
+            "errors": errors,
+            "timestamp": now.isoformat(),
+            "agent_summary": {
+                "healthy": summary.healthy,
+                "degraded": summary.degraded,
+                "down": summary.down,
+                "unknown": summary.unknown,
+            },
+        }
+
+    def write_extended_health_report(self, data: dict[str, Any]) -> Path:
+        """Write extended health report to Controller/health/health_report.json."""
+        out_path = self.config.health_report_file
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = out_path.with_suffix(".tmp")
+        tmp.write_text(
+            json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+        tmp.replace(out_path)
+        self.log.info("Extended health report written to %s", out_path)
+        return out_path
+
+    def _scan_locks(self) -> list[dict[str, Any]]:
+        """Scan the locks directory for active lock files."""
+        locks_dir = self.config.locks_dir
+        if not locks_dir.exists():
+            return []
+        result: list[dict[str, Any]] = []
+        for lock_file in locks_dir.glob("*.lock"):
+            try:
+                data = json.loads(lock_file.read_text(encoding="utf-8"))
+                data["_file"] = lock_file.name
+                result.append(data)
+            except (json.JSONDecodeError, OSError):
+                result.append({"_file": lock_file.name, "error": "unreadable"})
+        return result
+
+    def _check_inbox(self) -> list[str]:
+        """Check inbox for anomalies. Returns list of error strings."""
+        inbox = self.config.inbox_dir
+        errors: list[str] = []
+        if not inbox.exists():
+            errors.append("inbox_dir_missing")
+            return errors
+        # Check for very old unprocessed reports (> 1 hour)
+        now = datetime.now(timezone.utc)
+        for json_file in inbox.rglob("*.json"):
+            if json_file.name.endswith(".processed.json"):
+                continue
+            if json_file.name.endswith(".hash"):
+                continue
+            if "_self_report" in json_file.name:
+                continue
+            try:
+                mtime = datetime.fromtimestamp(
+                    json_file.stat().st_mtime, tz=timezone.utc
+                )
+                age_s = (now - mtime).total_seconds()
+                if age_s > 3600:
+                    errors.append(
+                        f"stale_inbox_report: {json_file.name} ({age_s:.0f}s old)"
+                    )
+            except OSError:
+                pass
+        return errors
+
+    def _check_outbox(self) -> list[str]:
+        """Check outbox for anomalies. Returns list of error strings."""
+        outbox = self.config.outbox_dir
+        errors: list[str] = []
+        if not outbox.exists():
+            errors.append("outbox_dir_missing")
+        return errors
+
+    def _check_audit(self) -> list[str]:
+        """Check audit directory exists. Returns list of error strings."""
+        audit = self.config.audit_dir
+        errors: list[str] = []
+        if not audit.exists():
+            errors.append("audit_dir_missing")
+        return errors
+
+    # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
 

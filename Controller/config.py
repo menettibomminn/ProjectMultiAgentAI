@@ -1,10 +1,11 @@
 """Configuration for the Controller.
 
 All paths are relative to the project root. Override via environment variables:
-    CTRL_ID              — controller identifier (default: controller-01)
-    CTRL_PROJECT_ROOT    — absolute path to project root
-    CTRL_LOCK_TIMEOUT    — lock timeout in seconds (default: 120)
-    CTRL_PROCESS_TIMEOUT — inbox processing timeout in seconds (default: 30)
+    CTRL_ID                  — controller identifier (default: controller-01)
+    CTRL_PROJECT_ROOT        — absolute path to project root
+    CTRL_LOCK_TIMEOUT        — lock timeout in seconds (default: 120)
+    CTRL_PROCESS_TIMEOUT     — inbox processing timeout in seconds (default: 30)
+    CTRL_ZOMBIE_LOCK_TIMEOUT — zombie lock timeout in seconds (default: 300)
 """
 from __future__ import annotations
 
@@ -63,6 +64,9 @@ class ControllerConfig:
     retry_max_per_task: int = 3
     retry_backoff_base: float = 2.0
 
+    # Zombie lock detection
+    zombie_lock_timeout_seconds: int = 300
+
     # Agent health paths (relative to project root)
     agent_health_paths: dict[str, str] = field(
         default_factory=_default_agent_health_paths
@@ -111,6 +115,26 @@ class ControllerConfig:
         return self.state_dir / "system_health.json"
 
     @property
+    def health_report_file(self) -> Path:
+        """Controller/health/health_report.json — extended health report."""
+        return self.project_root / "Controller" / "health" / "health_report.json"
+
+    @property
+    def controller_audit_dir(self) -> Path:
+        """Controller/audit/ — simplified operational audit logs."""
+        return self.project_root / "Controller" / "audit"
+
+    @property
+    def resource_state_file(self) -> Path:
+        """Controller/state/resource_state.json"""
+        return self.state_dir / "resource_state.json"
+
+    @property
+    def orchestrator_alert_file(self) -> Path:
+        """Controller/outbox/orchestrator_alert.json"""
+        return self.outbox_dir / "orchestrator_alert.json"
+
+    @property
     def health_file(self) -> Path:
         """HEALTH.md location."""
         if self.health_file_override is not None:
@@ -141,4 +165,6 @@ class ControllerConfig:
             kwargs["retry_max_per_task"] = int(v)
         if v := os.environ.get("CTRL_RETRY_BACKOFF"):
             kwargs["retry_backoff_base"] = float(v)
+        if v := os.environ.get("CTRL_ZOMBIE_LOCK_TIMEOUT"):
+            kwargs["zombie_lock_timeout_seconds"] = int(v)
         return cls(**kwargs)

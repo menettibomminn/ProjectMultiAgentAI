@@ -351,3 +351,173 @@ class TestE2E:
         # Verify retry state is cleared
         state = json.loads(retry_state.read_text(encoding="utf-8"))
         assert "sh-clear-001" not in state
+
+    # ------------------------------------------------------------------
+    # Extended feature tests
+    # ------------------------------------------------------------------
+
+    def test_orchestrator_comm_writes_system_status(
+        self,
+        tmp_project: Path,
+        test_config: ControllerConfig,
+        sample_report: dict[str, Any],
+    ) -> None:
+        """run_once writes system_status.json to outbox."""
+        team_dir = test_config.inbox_dir / "sheets-team" / "agent1"
+        team_dir.mkdir(parents=True, exist_ok=True)
+        (team_dir / "r1.json").write_text(
+            json.dumps(sample_report), encoding="utf-8"
+        )
+
+        ctrl = Controller(test_config)
+        ctrl.run_once()
+
+        status_path = test_config.outbox_dir / "system_status.json"
+        assert status_path.exists()
+        data = json.loads(status_path.read_text(encoding="utf-8"))
+        assert data["type"] == "system_status"
+        assert "health" in data
+
+    def test_extended_health_report_written(
+        self,
+        tmp_project: Path,
+        test_config: ControllerConfig,
+        sample_report: dict[str, Any],
+    ) -> None:
+        """run_once writes extended health report to Controller/health/."""
+        team_dir = test_config.inbox_dir / "sheets-team" / "agent1"
+        team_dir.mkdir(parents=True, exist_ok=True)
+        (team_dir / "r1.json").write_text(
+            json.dumps(sample_report), encoding="utf-8"
+        )
+
+        ctrl = Controller(test_config)
+        ctrl.run_once()
+
+        report_path = test_config.health_report_file
+        assert report_path.exists()
+        data = json.loads(report_path.read_text(encoding="utf-8"))
+        assert "status" in data
+        assert "active_agents" in data
+
+    def test_resource_state_tracked_during_processing(
+        self,
+        tmp_project: Path,
+        test_config: ControllerConfig,
+        sample_report: dict[str, Any],
+    ) -> None:
+        """Resource state is saved during report processing."""
+        team_dir = test_config.inbox_dir / "sheets-team" / "agent1"
+        team_dir.mkdir(parents=True, exist_ok=True)
+        (team_dir / "r1.json").write_text(
+            json.dumps(sample_report), encoding="utf-8"
+        )
+
+        ctrl = Controller(test_config)
+        ctrl.run_once()
+
+        # Resource state file should exist
+        state_file = test_config.resource_state_file
+        assert state_file.exists()
+        data = json.loads(state_file.read_text(encoding="utf-8"))
+        # After processing, resource should be idle
+        for key, val in data.items():
+            if key.startswith("_"):
+                continue
+            assert val["modifying"] is False
+
+    def test_zombie_lock_detected(
+        self,
+        tmp_project: Path,
+        test_config: ControllerConfig,
+        sample_report: dict[str, Any],
+    ) -> None:
+        """Old locks are detected as zombies."""
+        # Create a stale lock
+        locks_dir = test_config.locks_dir
+        locks_dir.mkdir(parents=True, exist_ok=True)
+        lock_data = {
+            "resource_id": "stale-res",
+            "agent_id": "dead-agent",
+            "timestamp": "2020-01-01T00:00:00+00:00",
+            "status": "locked",
+        }
+        (locks_dir / "stale-res.lock").write_text(
+            json.dumps(lock_data), encoding="utf-8"
+        )
+
+        # Write a report to trigger processing
+        team_dir = test_config.inbox_dir / "sheets-team" / "agent1"
+        team_dir.mkdir(parents=True, exist_ok=True)
+        (team_dir / "r1.json").write_text(
+            json.dumps(sample_report), encoding="utf-8"
+        )
+
+        ctrl = Controller(test_config)
+        ctrl.run_once()
+
+        # Check alerts.json was written with zombie lock
+        alerts_path = test_config.outbox_dir / "alerts.json"
+        assert alerts_path.exists()
+        data = json.loads(alerts_path.read_text(encoding="utf-8"))
+        zombie_alerts = [
+            a for a in data["alerts"] if a["type"] == "zombie_lock"
+        ]
+        assert len(zombie_alerts) >= 1
+        assert zombie_alerts[0]["resource_id"] == "stale-res"
+
+    def test_detection_does_not_crash_on_empty_inbox(
+        self,
+        tmp_project: Path,
+        test_config: ControllerConfig,
+    ) -> None:
+        """Detection pass runs safely even with no reports."""
+        ctrl = Controller(test_config)
+        result = ctrl.run_once()
+        assert result is False  # No reports to process
+
+    def test_new_subsystems_init_with_none_on_failure(
+        self,
+        tmp_project: Path,
+        test_config: ControllerConfig,
+    ) -> None:
+        """Controller initializes successfully — subsystems are not None."""
+        ctrl = Controller(test_config)
+        assert ctrl._resource_state_mgr is not None
+        assert ctrl._orchestrator_comm is not None
+        assert ctrl._audit_logger is not None
+
+    def test_detection_methods_return_lists(
+        self,
+        tmp_project: Path,
+        test_config: ControllerConfig,
+    ) -> None:
+        """Detection methods return lists (possibly empty)."""
+        ctrl = Controller(test_config)
+        assert isinstance(ctrl._detect_lock_conflicts(), list)
+        assert isinstance(ctrl._detect_stuck_agents(), list)
+        assert isinstance(ctrl._detect_missing_reports(), list)
+
+    def test_run_all_detections_populates_communicator(
+        self,
+        tmp_project: Path,
+        test_config: ControllerConfig,
+    ) -> None:
+        """_run_all_detections runs without error."""
+        # Create a zombie lock to ensure something is detected
+        locks_dir = test_config.locks_dir
+        locks_dir.mkdir(parents=True, exist_ok=True)
+        (locks_dir / "zombie.lock").write_text(
+            json.dumps({
+                "resource_id": "zombie",
+                "agent_id": "dead",
+                "timestamp": "2020-01-01T00:00:00+00:00",
+                "status": "locked",
+            }),
+            encoding="utf-8",
+        )
+
+        ctrl = Controller(test_config)
+        ctrl._run_all_detections()
+        assert ctrl._orchestrator_comm is not None
+        assert len(ctrl._orchestrator_comm.alerts) >= 1

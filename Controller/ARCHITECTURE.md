@@ -284,6 +284,71 @@ Definito in `agents/backend-agent/ARCHITECTURE.md`.
 }
 ```
 
+## Resource State Management
+
+Il modulo `resource_state_manager.py` traccia quali risorse sono attualmente in fase di modifica e da quale agente.
+
+**State file:** `Controller/state/resource_state.json`
+
+```json
+{
+  "_meta": {"version": 1, "created_by": "controller-01", "updated_at": "..."},
+  "inbox-sheets-team": {
+    "resource_id": "inbox-sheets-team",
+    "modifying": false,
+    "modified_by": "sheets-agent",
+    "timestamp": "2026-02-26T10:00:00+00:00"
+  }
+}
+```
+
+**API:** `mark_modifying(resource_id, agent_id)`, `mark_idle(resource_id)`, `is_modifying(resource_id)`, `get_all()`, `get_active_resources()`.
+
+## Orchestrator Communication
+
+Il modulo `orchestrator_communicator.py` gestisce la comunicazione strutturata con l'Orchestrator. Accumula alert e conflitti durante un ciclo di processing, poi li scrive come JSON nella outbox.
+
+**Files prodotti:**
+- `outbox/system_status.json` — snapshot stato sistema (health + resource state)
+- `outbox/alerts.json` — alert accumulati (zombie lock, agent down, etc.)
+- `outbox/conflicts.json` — conflitti rilevati (lock contention, etc.)
+- `outbox/orchestrator_alert.json` — alert ad alta priorità
+
+## Detection
+
+Il Controller esegue detection automatica nel `finally` block di `run_once()`:
+
+1. **Zombie locks** — lock file più vecchi di `zombie_lock_timeout_seconds` (default 300s)
+2. **Stuck agents** — agenti classificati come degraded o down
+3. **Missing reports** — team senza report recenti
+
+Gli alert vengono accumulati nell'`OrchestratorCommunicator` e scritti nella outbox.
+
+## Extended Health Monitoring
+
+Il metodo `check_all_extended()` in `health_monitor.py` estende il health check standard con:
+- Scansione lock attivi
+- Controllo inbox (report stale)
+- Controllo outbox e audit directory
+- Report esteso in `Controller/health/health_report.json`
+
+## Audit Operativo
+
+`audit_logger.py` è una facade che:
+- Re-esporta le funzioni di `controller_audit_logger.py` per compatibilità
+- Aggiunge `AuditLogger` per log operativi semplificati in `Controller/audit/`
+
+Formato entry: `{timestamp, action, resource, agent, result, controller_id}`
+
+## Resource-Centric Locks
+
+Nuova API in `lock_manager.py` (senza prefix `ctrl_`):
+- `acquire_lock(resource_id, agent_id, team_id)` — file: `locks/{resource_id}.lock`
+- `release_lock(resource_id)`
+- `check_lock(resource_id)`
+
+L'API vecchia (`acquire/release/is_held` con prefix `ctrl_`) resta invariata.
+
 ### health_v1.json
 
 ```json

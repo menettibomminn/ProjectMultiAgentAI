@@ -40,6 +40,12 @@ from Controller.controller_task_parser import (
     parse_report_file,
     parse_task_file,
 )
+from Controller.resource_state_manager import ResourceStateManager
+from Controller.orchestrator_communicator import (
+    Alert,
+    OrchestratorCommunicator,
+)
+from Controller.audit_logger import AuditLogger
 
 
 class Controller:
@@ -57,6 +63,38 @@ class Controller:
         )
         self._health_monitor = HealthMonitor(self.config)
         self._retry_mgr = RetryManager(self.config)
+
+        # New subsystems — wrapped in try/except to never block init
+        try:
+            self._resource_state_mgr: ResourceStateManager | None = (
+                ResourceStateManager(
+                    self.config.resource_state_file,
+                    self.config.controller_id,
+                )
+            )
+        except Exception as exc:
+            self.log.error("ResourceStateManager init failed: %s", exc)
+            self._resource_state_mgr = None
+
+        try:
+            self._orchestrator_comm: OrchestratorCommunicator | None = (
+                OrchestratorCommunicator(
+                    self.config.outbox_dir,
+                    self.config.controller_id,
+                )
+            )
+        except Exception as exc:
+            self.log.error("OrchestratorCommunicator init failed: %s", exc)
+            self._orchestrator_comm = None
+
+        try:
+            self._audit_logger: AuditLogger | None = AuditLogger(
+                self.config.controller_audit_dir,
+                self.config.controller_id,
+            )
+        except Exception as exc:
+            self.log.error("AuditLogger init failed: %s", exc)
+            self._audit_logger = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -148,6 +186,17 @@ class Controller:
                 # Step 2d — process valid report
                 self._step(op_steps, f"process_{report_path.name}")
                 agent_name = report_data.get("agent", "unknown")
+
+                # Track resource modification state
+                if self._resource_state_mgr is not None:
+                    try:
+                        self._resource_state_mgr.mark_modifying(
+                            resource_id, agent_name
+                        )
+                    except Exception as rs_exc:
+                        self.log.error(
+                            "Resource state mark_modifying failed: %s", rs_exc
+                        )
                 report_task_id = report_data.get("task_id", "unknown")
                 report_status = report_data.get("status", "unknown")
 
@@ -232,6 +281,15 @@ class Controller:
                     "status": report_status,
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 })
+
+                # Mark resource idle after processing
+                if self._resource_state_mgr is not None:
+                    try:
+                        self._resource_state_mgr.mark_idle(resource_id)
+                    except Exception as rs_exc:
+                        self.log.error(
+                            "Resource state mark_idle failed: %s", rs_exc
+                        )
 
                 # Step 2f — mark report as processed
                 self._mark_processed(report_path)
@@ -340,6 +398,30 @@ class Controller:
             except Exception as hc_exc:
                 self.log.error(
                     "System health check failed: %s", hc_exc
+                )
+
+            # Extended detection and orchestrator communication
+            try:
+                self._run_all_detections()
+                if self._orchestrator_comm is not None:
+                    health_data = self._health_monitor.check_all_extended()
+                    resource_data: dict[str, Any] = {}
+                    if self._resource_state_mgr is not None:
+                        resource_data = {
+                            rid: {
+                                "resource_id": e.resource_id,
+                                "modifying": e.modifying,
+                                "modified_by": e.modified_by,
+                                "timestamp": e.timestamp,
+                            }
+                            for rid, e in self._resource_state_mgr.get_all().items()
+                        }
+                    self._orchestrator_comm.flush_all(health_data, resource_data)
+                    self._health_monitor.write_extended_health_report(health_data)
+                    self._orchestrator_comm.clear()
+            except Exception as det_exc:
+                self.log.error(
+                    "Detection/communication pass failed: %s", det_exc
                 )
 
     def check_health(self) -> dict[str, Any]:
@@ -682,3 +764,137 @@ class Controller:
             and "_self_report" not in f.name
             and "example" not in str(f)
         )
+
+    # ------------------------------------------------------------------
+    # Detection
+    # ------------------------------------------------------------------
+
+    def _detect_lock_conflicts(self) -> list[Alert]:
+        """Detect zombie locks and lock contention."""
+        alerts: list[Alert] = []
+        locks_dir = self.config.locks_dir
+        if not locks_dir.exists():
+            return alerts
+
+        now = datetime.now(timezone.utc)
+        zombie_timeout = self.config.zombie_lock_timeout_seconds
+
+        for lock_file in locks_dir.glob("*.lock"):
+            try:
+                data = json.loads(lock_file.read_text(encoding="utf-8"))
+                ts_str = data.get("timestamp") or data.get("ts", "")
+                if not ts_str:
+                    continue
+                lock_ts = datetime.fromisoformat(ts_str)
+                age = (now - lock_ts).total_seconds()
+                if age > zombie_timeout:
+                    alerts.append(Alert(
+                        type="zombie_lock",
+                        resource_id=lock_file.stem,
+                        agent_id=data.get("agent_id", data.get("owner", "unknown")),
+                        details=f"Lock age {age:.0f}s > timeout {zombie_timeout}s",
+                    ))
+            except (json.JSONDecodeError, OSError, ValueError):
+                continue
+        return alerts
+
+    def _detect_stuck_agents(
+        self, health_summary: dict[str, Any] | None = None
+    ) -> list[Alert]:
+        """Detect agents that are degraded or down."""
+        alerts: list[Alert] = []
+        if health_summary is None:
+            return alerts
+
+        agent_summary = health_summary.get("agent_summary", {})
+        for agent_name in agent_summary.get("degraded", []):
+            alerts.append(Alert(
+                type="stuck_agent",
+                resource_id="system",
+                agent_id=agent_name,
+                details="Agent is degraded",
+            ))
+        for agent_name in agent_summary.get("down", []):
+            alerts.append(Alert(
+                type="agent_down",
+                resource_id="system",
+                agent_id=agent_name,
+                details="Agent is down",
+            ))
+        return alerts
+
+    def _detect_missing_reports(self) -> list[Alert]:
+        """Detect teams without recent reports in the inbox."""
+        alerts: list[Alert] = []
+        inbox = self.config.inbox_dir
+        if not inbox.exists():
+            return alerts
+
+        now = datetime.now(timezone.utc)
+        # Check each team directory
+        for team_dir in inbox.iterdir():
+            if not team_dir.is_dir():
+                continue
+            if team_dir.name == "controller":
+                continue
+            # Find most recent report
+            reports = sorted(team_dir.rglob("*.json"), reverse=True)
+            reports = [
+                r for r in reports
+                if not r.name.endswith(".hash")
+                and "_self_report" not in r.name
+            ]
+            if not reports:
+                continue
+            try:
+                latest_mtime = datetime.fromtimestamp(
+                    reports[0].stat().st_mtime, tz=timezone.utc
+                )
+                age = (now - latest_mtime).total_seconds()
+                if age > self.config.health_down_timeout_seconds:
+                    alerts.append(Alert(
+                        type="missing_reports",
+                        resource_id=team_dir.name,
+                        agent_id="unknown",
+                        details=f"No reports for {age:.0f}s",
+                    ))
+            except OSError:
+                continue
+        return alerts
+
+    def _run_all_detections(self) -> None:
+        """Run all detection checks and populate the orchestrator communicator."""
+        if self._orchestrator_comm is None:
+            return
+
+        # Lock conflicts
+        try:
+            for alert in self._detect_lock_conflicts():
+                self._orchestrator_comm.add_alert(
+                    alert.type, alert.resource_id, alert.agent_id, alert.details
+                )
+                if self._audit_logger is not None:
+                    self._audit_logger.log_alert_emitted(
+                        alert.resource_id, alert.agent_id, alert.details
+                    )
+        except Exception as exc:
+            self.log.error("Lock conflict detection failed: %s", exc)
+
+        # Stuck agents (use extended health data if available)
+        try:
+            health_data = self._health_monitor.check_all_extended()
+            for alert in self._detect_stuck_agents(health_data):
+                self._orchestrator_comm.add_alert(
+                    alert.type, alert.resource_id, alert.agent_id, alert.details
+                )
+        except Exception as exc:
+            self.log.error("Stuck agent detection failed: %s", exc)
+
+        # Missing reports
+        try:
+            for alert in self._detect_missing_reports():
+                self._orchestrator_comm.add_alert(
+                    alert.type, alert.resource_id, alert.agent_id, alert.details
+                )
+        except Exception as exc:
+            self.log.error("Missing reports detection failed: %s", exc)

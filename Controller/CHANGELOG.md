@@ -53,4 +53,15 @@ append_only: true
 - Files created: health_monitor.py, retry_manager.py, Controller/state/.gitkeep, test_health_monitor.py, test_retry_manager.py
 - Files modified: config.py, controller.py, __main__.py, controller_task_parser.py, conftest.py, test_e2e.py, TODO.md
 
+## 2026-02-26T10:00:00Z — Task ctrl-extended
+
+- Status: success
+- Summary: Estensione Controller con gestione lock resource-centric, resource state tracking, monitoraggio esteso, rilevamento conflitti/errori (zombie locks, stuck agents, missing reports), audit operativo semplificato, comunicazione strutturata con l'Orchestrator. Nuovi moduli: resource_state_manager.py, orchestrator_communicator.py, audit_logger.py (facade). Moduli estesi: config.py (nuove properties/campi), lock_manager.py (nuova API acquire_lock/release_lock/check_lock), health_monitor.py (check_all_extended, write_extended_health_report, scan_locks). Controller integrato: detection nel finally block, resource state tracking nel loop di processing.
+- Directives emitted: []
+- State changes: [resource_state_manager_added, orchestrator_communicator_added, audit_logger_added, config_extended, lock_manager_extended, health_monitor_extended, controller_integrated]
+- Metrics: duration_ms=0, tokens_in=0, tokens_out=0, cost_eur=0.0
+- Tests: 94+ new test cases (resource_state_manager: 18, orchestrator_communicator: 20, audit_logger: 12, lock_manager_new: 15, health_monitor extended: 10, e2e extended: 8, integration: 11)
+- Files created: resource_state_manager.py, orchestrator_communicator.py, audit_logger.py, Controller/state/resource_state.json, Controller/audit/, Controller/health/, test_resource_state_manager.py, test_orchestrator_communicator.py, test_audit_logger_new.py, test_lock_manager_new.py
+- Files modified: config.py, lock_manager.py, health_monitor.py, controller.py, test_health_monitor.py, test_e2e.py, ARCHITECTURE.md, CHANGELOG.md, TODO.md
+
 <!-- Append new entries below this line -->

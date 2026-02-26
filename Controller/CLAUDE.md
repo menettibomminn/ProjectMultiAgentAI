@@ -1,6 +1,6 @@
 ---
-version: "1.0.0"
-last_updated: "2026-02-22"
+version: "1.1.0"
+last_updated: "2026-02-26"
 owner: "platform-team"
 project: "ProjectMultiAgentAI"
 ---
@@ -28,6 +28,8 @@ Componente centrale che riceve report dagli agenti via inbox, aggiorna lo stato 
 | `update_state` | Aggiorna orchestrator/STATE.md | `{changes: StateChange[]}` | `{updated: boolean}` |
 | `reroute_task` | Re-instrada task da agente fallito | `{failed_agent, task}` | `{new_target, directive}` |
 | `aggregate_team_reports` | Aggrega report di un team | `{team_id}` | `{team_report: TeamReport}` |
+| `check_health` | Health check di tutti gli agenti | `{}` | `{overall_status, agents{}}` |
+| `detect_conflicts` | Rileva zombie locks, agent down, report mancanti | `{}` | `{alerts[], conflicts[]}` |
 
 ## Prompt Base (Template)
 
@@ -128,12 +130,22 @@ FUNCTION error_hook(task, error):
 }
 ```
 
+## Vincoli Nuovi Moduli
+
+- `resource_state_manager.py`, `orchestrator_communicator.py`, `audit_logger.py` sono **fault-tolerant**: se init fallisce, il Controller continua a funzionare (subsystem = None).
+- Il detection pass nel `finally` block è wrappato in try/except — non crasha mai il Controller.
+- L'API lock vecchia (`ctrl_` prefix) e nuova (senza prefix) sono **indipendenti** e non interferiscono.
+- `audit_logger.py` è una **facade**: re-esporta tutto da `controller_audit_logger.py` e aggiunge la classe `AuditLogger`.
+
 ## File Collegati
 
 | File | Scopo |
 |---|---|
 | `TODO.md` | Checklist task pendenti |
 | `HEALTH.md` | Stato corrente (append-only, machine-readable) |
-| `ARCHITECTURE.md` | Architettura inbox/outbox, flow, locking |
+| `ARCHITECTURE.md` | Architettura inbox/outbox, flow, locking, resource state, detection |
 | `CHANGELOG.md` | Registro azioni (append-only) |
 | `MISTAKE.md` | Registro errori (append-only) |
+| `resource_state_manager.py` | Tracking risorse in modifica |
+| `orchestrator_communicator.py` | Comunicazione strutturata con Orchestrator |
+| `audit_logger.py` | Facade audit + log operativi semplificati |

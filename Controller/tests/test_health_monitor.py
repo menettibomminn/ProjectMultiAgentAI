@@ -241,3 +241,111 @@ class TestCheckAll:
         summary = monitor.check_all()
         assert summary.overall_status == "healthy"
         assert len(summary.healthy) == 2
+
+
+class TestCheckAllExtended:
+    """Test check_all_extended extended monitoring."""
+
+    def _make_config(self, tmp_path: Path) -> ControllerConfig:
+        # Create required dirs
+        (tmp_path / "Controller" / "inbox").mkdir(parents=True)
+        (tmp_path / "Controller" / "outbox").mkdir(parents=True)
+        (tmp_path / "audit" / "controller" / "test").mkdir(parents=True)
+        (tmp_path / "locks").mkdir(parents=True)
+        return ControllerConfig(
+            controller_id="test",
+            project_root=tmp_path,
+            agent_health_paths={},
+        )
+
+    def test_returns_expected_keys(self, tmp_path: Path) -> None:
+        config = self._make_config(tmp_path)
+        monitor = HealthMonitor(config)
+        result = monitor.check_all_extended()
+        assert "status" in result
+        assert "active_agents" in result
+        assert "active_locks" in result
+        assert "errors" in result
+        assert "timestamp" in result
+
+    def test_no_errors_when_dirs_exist(self, tmp_path: Path) -> None:
+        config = self._make_config(tmp_path)
+        monitor = HealthMonitor(config)
+        result = monitor.check_all_extended()
+        assert result["errors"] == []
+
+    def test_missing_inbox_reported(self, tmp_path: Path) -> None:
+        config = ControllerConfig(
+            controller_id="test",
+            project_root=tmp_path / "empty",
+            agent_health_paths={},
+        )
+        (tmp_path / "empty" / "locks").mkdir(parents=True)
+        monitor = HealthMonitor(config)
+        result = monitor.check_all_extended()
+        error_msgs = " ".join(result["errors"])
+        assert "inbox_dir_missing" in error_msgs
+
+    def test_scan_locks(self, tmp_path: Path) -> None:
+        config = self._make_config(tmp_path)
+        locks_dir = tmp_path / "locks"
+        (locks_dir / "test.lock").write_text(
+            json.dumps({"owner": "ctrl", "ts": "2026-01-01"}),
+            encoding="utf-8",
+        )
+        monitor = HealthMonitor(config)
+        locks = monitor._scan_locks()
+        assert len(locks) == 1
+        assert locks[0]["_file"] == "test.lock"
+
+    def test_scan_locks_empty(self, tmp_path: Path) -> None:
+        config = self._make_config(tmp_path)
+        monitor = HealthMonitor(config)
+        assert monitor._scan_locks() == []
+
+    def test_scan_locks_corrupt_file(self, tmp_path: Path) -> None:
+        config = self._make_config(tmp_path)
+        (tmp_path / "locks" / "bad.lock").write_text(
+            "NOT JSON", encoding="utf-8"
+        )
+        monitor = HealthMonitor(config)
+        locks = monitor._scan_locks()
+        assert len(locks) == 1
+        assert "error" in locks[0]
+
+
+class TestWriteExtendedHealthReport:
+    """Test write_extended_health_report."""
+
+    def test_writes_report(self, tmp_path: Path) -> None:
+        config = ControllerConfig(
+            controller_id="test",
+            project_root=tmp_path,
+            agent_health_paths={},
+        )
+        monitor = HealthMonitor(config)
+        data = {"status": "healthy", "errors": [], "timestamp": "now"}
+        path = monitor.write_extended_health_report(data)
+        assert path.exists()
+        written = json.loads(path.read_text(encoding="utf-8"))
+        assert written["status"] == "healthy"
+
+    def test_creates_parent_dirs(self, tmp_path: Path) -> None:
+        config = ControllerConfig(
+            controller_id="test",
+            project_root=tmp_path,
+            agent_health_paths={},
+        )
+        monitor = HealthMonitor(config)
+        path = monitor.write_extended_health_report({"status": "ok"})
+        assert path.parent.exists()
+
+    def test_report_path(self, tmp_path: Path) -> None:
+        config = ControllerConfig(
+            controller_id="test",
+            project_root=tmp_path,
+            agent_health_paths={},
+        )
+        monitor = HealthMonitor(config)
+        path = monitor.write_extended_health_report({"x": 1})
+        assert path == tmp_path / "Controller" / "health" / "health_report.json"
