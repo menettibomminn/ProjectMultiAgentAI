@@ -53,7 +53,10 @@
       "Bash(autoflake:*)",
       "Bash(mypy:*)",
       "Bash(wc:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(gh repo:*)",
+      "Bash(npx repomix:*)",
+      "Bash(git rm:*)"
     ]
   }
 }
