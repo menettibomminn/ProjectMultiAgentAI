@@ -19,11 +19,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from Controller.audit_manager import AuditManager
 from Controller.config import ControllerConfig
 from Controller.health_monitor import HealthMonitor
 from Controller.lock_manager import LockManager, LockError
 from Controller.logger import get_logger
 from Controller.retry_manager import RetryManager
+from Controller.task_manager import (
+    TaskManager,
+    TaskNotFoundError,
+    InvalidTransitionError,
+)
 from Controller.controller_audit_logger import (
     verify_report_checksum,
     write_audit_entry,
@@ -96,6 +102,24 @@ class Controller:
             self.log.error("AuditLogger init failed: %s", exc)
             self._audit_logger = None
 
+        # Task lifecycle manager
+        try:
+            self._task_mgr: TaskManager | None = TaskManager(
+                self.config.tasks_file,
+            )
+        except Exception as exc:
+            self.log.error("TaskManager init failed: %s", exc)
+            self._task_mgr = None
+
+        # Structured audit manager (JSONL)
+        try:
+            self._audit_mgr: AuditManager | None = AuditManager(
+                self.config.audit_log_file,
+            )
+        except Exception as exc:
+            self.log.error("AuditManager init failed: %s", exc)
+            self._audit_mgr = None
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -115,6 +139,23 @@ class Controller:
         report: dict[str, Any] | None = None
         error: Exception | None = None
         locked_resources: list[str] = []
+        managed_task_id: str | None = None
+
+        # Create a managed task for this processing cycle
+        if self._task_mgr is not None:
+            try:
+                managed_task_id = self._task_mgr.create_task(
+                    task_type="process_inbox",
+                    payload={"team_filter": team_filter, "ctrl_task_id": task_id},
+                )
+                self._task_mgr.update_task_status(managed_task_id, "RUNNING")
+            except Exception as tm_exc:
+                self.log.error("TaskManager create/start failed: %s", tm_exc)
+
+        self._audit_event(
+            task_id, "controller", "run_once_started", "ok",
+            {"team_filter": team_filter},
+        )
 
         try:
             # Step 1 — discover reports in inbox
@@ -128,9 +169,17 @@ class Controller:
                     status="healthy",
                     error_count_delta=0,
                 )
+                self._audit_event(
+                    task_id, "controller", "scan_inbox", "empty",
+                )
+                self._complete_managed_task(managed_task_id, "COMPLETED")
                 return False
 
             self.log.info("Found %d report(s) to process", len(report_files))
+            self._audit_event(
+                task_id, "controller", "scan_inbox", "ok",
+                {"report_count": len(report_files)},
+            )
 
             # Step 2 — process each report
             for report_path in report_files:
@@ -143,9 +192,17 @@ class Controller:
                     try:
                         self._lock_mgr.acquire(resource_id, task_id)
                         locked_resources.append(resource_id)
+                        self._audit_event(
+                            task_id, "controller", "lock_acquired", "ok",
+                            {"resource_id": resource_id},
+                        )
                     except LockError as exc:
                         self.log.warning(
                             "Cannot lock %s, skipping: %s", resource_id, exc
+                        )
+                        self._audit_event(
+                            task_id, "controller", "lock_acquire_failed", "error",
+                            {"resource_id": resource_id, "error": str(exc)},
                         )
                         continue
 
@@ -163,6 +220,10 @@ class Controller:
                         "status": "tampered",
                         "checksum": checksum,
                     })
+                    self._audit_event(
+                        task_id, "controller", "integrity_check", "tampered",
+                        {"file": report_path.name, "checksum": checksum},
+                    )
                     continue
 
                 # Step 2c — parse and validate report
@@ -179,6 +240,10 @@ class Controller:
                         "status": "invalid",
                         "errors": result.errors,
                     })
+                    self._audit_event(
+                        task_id, "controller", "report_validation", "invalid",
+                        {"file": report_path.name, "errors": result.errors},
+                    )
                     continue
 
                 report_data = result.data
@@ -208,6 +273,11 @@ class Controller:
                     "checksum": checksum,
                 })
 
+                self._audit_event(
+                    task_id, agent_name, "report_processed", report_status,
+                    {"report_task_id": report_task_id, "file": report_path.name},
+                )
+
                 # Step 2d-retry — handle error/failure via RetryManager
                 if report_status in ("error", "failure"):
                     report_team = team_id or "unknown"
@@ -229,6 +299,14 @@ class Controller:
                             report_task_id,
                             entry.retry_count,
                             entry.max_retries,
+                        )
+                        self._audit_event(
+                            task_id, agent_name, "retry_emitted", "ok",
+                            {
+                                "report_task_id": report_task_id,
+                                "attempt": entry.retry_count,
+                                "max": entry.max_retries,
+                            },
                         )
                     else:
                         entry = self._retry_mgr.record_failure(
@@ -252,6 +330,10 @@ class Controller:
                             report_task_id,
                             reason,
                         )
+                        self._audit_event(
+                            task_id, agent_name, "escalation_emitted", "exhausted",
+                            {"report_task_id": report_task_id, "reason": reason},
+                        )
                 elif report_status == "success":
                     self._retry_mgr.record_success(report_task_id)
                 elif report_status == "needs_review":
@@ -263,6 +345,10 @@ class Controller:
                     self.log.info(
                         "Report %s from %s queued for human review",
                         report_task_id, agent_name,
+                    )
+                    self._audit_event(
+                        task_id, agent_name, "queued_for_review", "pending",
+                        {"report_task_id": report_task_id},
                     )
 
                 # Write hash companion file if not present
@@ -324,6 +410,11 @@ class Controller:
             write_report(report, self_report_path)
             self.log.info("Self-report written to %s", self_report_path)
 
+            self._audit_event(
+                task_id, "controller", "run_once_completed", "ok",
+                {"processed": len(processed_reports), "directives": len(directives_emitted)},
+            )
+            self._complete_managed_task(managed_task_id, "COMPLETED")
             return len(processed_reports) > 0
 
         except Exception as exc:
@@ -334,6 +425,11 @@ class Controller:
                 controller_id=self.config.controller_id,
                 errors=[f"Internal error: {exc}"],
             )
+            self._audit_event(
+                task_id, "controller", "run_once_error", "error",
+                {"error": str(exc)},
+            )
+            self._complete_managed_task(managed_task_id, "FAILED")
             return False
 
         finally:
@@ -345,6 +441,10 @@ class Controller:
                 if self._lock_mgr.is_held(rid):
                     self._lock_mgr.release(rid)
                     self.log.info("Lock released for %s", rid)
+                    self._audit_event(
+                        task_id, "controller", "lock_released", "ok",
+                        {"resource_id": rid},
+                    )
 
             # Write audit
             try:
@@ -638,6 +738,33 @@ class Controller:
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
+
+    def _audit_event(
+        self,
+        task_id: str,
+        agent: str,
+        action: str,
+        status: str,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        """Log an event to the AuditManager (best-effort, never raises)."""
+        if self._audit_mgr is None:
+            return
+        try:
+            self._audit_mgr.log_event(task_id, agent, action, status, details)
+        except Exception as exc:
+            self.log.error("AuditManager log_event failed: %s", exc)
+
+    def _complete_managed_task(
+        self, managed_task_id: str | None, status: str
+    ) -> None:
+        """Transition the managed task to a terminal state (best-effort)."""
+        if self._task_mgr is None or managed_task_id is None:
+            return
+        try:
+            self._task_mgr.update_task_status(managed_task_id, status)
+        except (TaskNotFoundError, InvalidTransitionError) as exc:
+            self.log.error("TaskManager transition failed: %s", exc)
 
     def _scan_inbox(self, team_filter: str | None = None) -> list[Path]:
         """Find all unprocessed report JSON files in the inbox."""

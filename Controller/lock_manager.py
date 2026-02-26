@@ -157,6 +157,24 @@ class LockManager:
             return True
         return False
 
+    def is_locked(self, resource_id: str) -> bool:
+        """Check if a resource-centric lock is currently active.
+
+        Returns True if the lock file exists and is not stale.
+        """
+        data = self.check_lock(resource_id)
+        if data is None:
+            return False
+        ts_str = data.get("timestamp", "")
+        if not ts_str:
+            return True
+        try:
+            lock_ts = datetime.fromisoformat(ts_str)
+            age = (datetime.now(timezone.utc) - lock_ts).total_seconds()
+            return age <= self._timeout
+        except ValueError:
+            return True
+
     def check_lock(self, resource_id: str) -> dict[str, Any] | None:
         """Check the state of a resource-centric lock. Returns lock data or None."""
         lock_path = self._new_lock_path(resource_id)

@@ -125,6 +125,16 @@ class ControllerConfig:
         return self.project_root / "Controller" / "audit"
 
     @property
+    def tasks_file(self) -> Path:
+        """Controller/state/tasks.json — managed task registry."""
+        return self.state_dir / "tasks.json"
+
+    @property
+    def audit_log_file(self) -> Path:
+        """Controller/state/audit_log.jsonl — structured audit log."""
+        return self.state_dir / "audit_log.jsonl"
+
+    @property
     def resource_state_file(self) -> Path:
         """Controller/state/resource_state.json"""
         return self.state_dir / "resource_state.json"
