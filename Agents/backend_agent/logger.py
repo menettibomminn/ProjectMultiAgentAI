@@ -42,8 +42,8 @@ def get_logger(agent_id: str, task_id: str | None = None) -> logging.Logger:
 
     class _ContextFilter(logging.Filter):
         def filter(self, record: logging.LogRecord) -> bool:
-            record.agent_id = agent_id  # type: ignore[attr-defined]
-            record.task_id = task_id  # type: ignore[attr-defined]
+            record.agent_id = agent_id
+            record.task_id = task_id
             return True
 
     for f in list(logger.filters):

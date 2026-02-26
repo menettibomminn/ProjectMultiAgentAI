@@ -140,7 +140,7 @@ class RateLimiter:
         if not path.exists():
             return self._empty_state(datetime.now(timezone.utc))
         try:
-            data = json.loads(path.read_text(encoding="utf-8"))
+            data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
             # Validate required keys
             for key in (
                 "minute_window_start",

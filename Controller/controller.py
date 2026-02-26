@@ -380,8 +380,8 @@ class Controller:
         elif skill == "emit_directive":
             return self._emit_directive_from_task(task)
         elif skill == "check_health":
-            result = self.check_health()
-            self.log.info("Health check result: %s", result["overall_status"])
+            health_result = self.check_health()
+            self.log.info("Health check result: %s", health_result["overall_status"])
             return True
         elif skill == "review_candidate":
             return self._review_candidate(task)

@@ -211,7 +211,8 @@ class MetricsAgent:
     @staticmethod
     def _read_json(path: Path) -> dict[str, Any] | None:
         try:
-            return json.loads(path.read_text(encoding="utf-8"))
+            result: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+            return result
         except (json.JSONDecodeError, OSError):
             return None
 
@@ -220,7 +221,7 @@ class MetricsAgent:
         """Best-effort extraction of task_id from a potentially invalid file."""
         try:
             data = json.loads(task_path.read_text(encoding="utf-8"))
-            return data.get("task_id", "unknown")
+            return str(data.get("task_id", "unknown"))
         except Exception:
             return "unknown"
 

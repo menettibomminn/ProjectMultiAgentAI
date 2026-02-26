@@ -182,7 +182,7 @@ return 0
         prefix: str = "lock:sheet:",
     ) -> None:
         try:
-            import redis as redis_lib  # type: ignore[import-untyped]
+            import redis as redis_lib
         except ImportError as exc:
             raise ImportError(
                 "RedisLockBackend requires the 'redis' package. "

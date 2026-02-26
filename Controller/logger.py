@@ -42,8 +42,8 @@ def get_logger(controller_id: str, task_id: str | None = None) -> logging.Logger
 
     class _ContextFilter(logging.Filter):
         def filter(self, record: logging.LogRecord) -> bool:
-            record.controller_id = controller_id  # type: ignore[attr-defined]
-            record.task_id = task_id  # type: ignore[attr-defined]
+            record.controller_id = controller_id
+            record.task_id = task_id
             return True
 
     for f in list(logger.filters):
