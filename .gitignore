@@ -17,6 +17,8 @@ __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
+.mypy_cache/
+.coverage
 
 # Runtime directories (created by agents)
 inbox/
@@ -50,3 +52,4 @@ ops/audit/
 # OS
 Thumbs.db
 .DS_Store
+repomix-output.txt
