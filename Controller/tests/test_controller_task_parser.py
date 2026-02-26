@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-import pytest
 
 from Controller.controller_task_parser import (
     parse_report,

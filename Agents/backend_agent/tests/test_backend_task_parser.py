@@ -5,7 +5,6 @@ import copy
 import json
 from typing import Any
 
-import pytest
 
 from Agents.backend_agent.backend_task_parser import (
     parse_task,

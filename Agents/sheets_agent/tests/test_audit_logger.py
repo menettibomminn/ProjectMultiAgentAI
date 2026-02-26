@@ -3,9 +3,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
 
-import pytest
 
 from Agents.sheets_agent.sheets_audit_logger import compute_checksum, write_audit_entry
 

@@ -25,7 +25,6 @@ from Controller.lock_manager import LockManager, LockError
 from Controller.logger import get_logger
 from Controller.retry_manager import RetryManager
 from Controller.controller_audit_logger import (
-    compute_checksum,
     verify_report_checksum,
     write_audit_entry,
     write_hash_file,

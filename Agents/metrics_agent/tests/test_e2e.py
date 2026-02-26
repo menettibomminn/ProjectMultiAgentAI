@@ -3,9 +3,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
 
-import pytest
 
 from Agents.metrics_agent.metrics_agent import MetricsAgent
 from Agents.metrics_agent.config import MetricsAgentConfig

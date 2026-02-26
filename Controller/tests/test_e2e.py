@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-import pytest
 
 from Controller.config import ControllerConfig
 from Controller.controller import Controller
@@ -43,9 +42,9 @@ class TestE2E:
         assert processed.exists()
 
         # Verify hash companion file was created
-        hash_file = processed.with_suffix(".json.hash")
+        processed.with_suffix(".json.hash")
         # Hash file was created before rename, check for it
-        original_hash = report_path.with_suffix(".json.hash")
+        report_path.with_suffix(".json.hash")
         # Note: hash was written before mark_processed renames the report.
         # The hash file stays with the original name.
 
@@ -132,7 +131,7 @@ class TestE2E:
         hash_path.write_text("definitely_wrong_hash", encoding="utf-8")
 
         ctrl = Controller(test_config)
-        result = ctrl.run_once()
+        ctrl.run_once()
 
         # Processing ran but tampered report was skipped (not renamed)
         # Still returns True because the scan found files

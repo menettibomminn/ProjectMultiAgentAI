@@ -5,7 +5,6 @@ import json
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
 
 import pytest
 

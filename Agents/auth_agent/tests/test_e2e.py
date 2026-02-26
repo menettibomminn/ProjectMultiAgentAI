@@ -3,9 +3,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
 
-import pytest
 
 from Agents.auth_agent.auth_agent import AuthAgent
 from Agents.auth_agent.config import AuthAgentConfig

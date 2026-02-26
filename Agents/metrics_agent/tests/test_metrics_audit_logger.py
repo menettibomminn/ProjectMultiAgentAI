@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-import pytest
 
 from Agents.metrics_agent.metrics_audit_logger import (
     compute_checksum,

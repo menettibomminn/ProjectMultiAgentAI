@@ -3,9 +3,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
 
-import pytest
 
 from Agents.backend_agent.backend_agent import BackendAgent
 from Agents.backend_agent.config import BackendAgentConfig

@@ -4,9 +4,7 @@ from __future__ import annotations
 import copy
 import json
 from pathlib import Path
-from typing import Any
 
-import pytest
 
 from Agents.frontend_agent.frontend_report_generator import (
     generate_error_report,

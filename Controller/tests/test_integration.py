@@ -256,7 +256,6 @@ class TestReportV1Conformance:
         assert result.ok, f"Frontend report failed report_v1: {result.errors}"
 
 
-
 # ---------------------------------------------------------------------------
 # End-to-end integration: sheets agent report → Controller processing
 # ---------------------------------------------------------------------------

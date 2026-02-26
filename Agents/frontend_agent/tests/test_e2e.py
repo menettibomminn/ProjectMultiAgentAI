@@ -3,9 +3,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
 
-import pytest
 
 from Agents.frontend_agent.frontend_agent import FrontendAgent
 from Agents.frontend_agent.config import FrontendAgentConfig

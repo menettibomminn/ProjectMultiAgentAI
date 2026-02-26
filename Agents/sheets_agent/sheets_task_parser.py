@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from jsonschema import Draft7Validator, ValidationError
+from jsonschema import Draft7Validator
 
 # ---------------------------------------------------------------------------
 # JSON Schema for task.json

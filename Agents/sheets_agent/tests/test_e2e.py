@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-import pytest
 
 from Agents.sheets_agent.config import SheetsAgentConfig
 from Agents.sheets_agent.sheets_agent import SheetsAgent
