@@ -44,7 +44,9 @@
       "Bash(mv:*)",
       "Bash(mkdir:*)",
       "Bash(git stash:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }
