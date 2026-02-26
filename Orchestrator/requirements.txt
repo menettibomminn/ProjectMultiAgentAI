@@ -1,0 +1,9 @@
+# Orchestrator — dependencies
+pydantic>=2.0,<3
+portalocker>=2.8,<3
+
+# Dev / test
+pytest>=7.4,<9
+pytest-cov>=4.1,<6
+flake8>=6.0,<8
+mypy>=1.7,<2
