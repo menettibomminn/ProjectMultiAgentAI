@@ -1,0 +1,227 @@
+{
+  "project": "ProjectMultiAgentAI",
+  "branchName": "ralph/multi-agent-implementation",
+  "description": "Implement all stub agents as enterprise-grade Python packages following the Agents/sheets/ reference pattern",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "auth-agent — Python source modules",
+      "description": "As a developer, I need the auth-agent fully implemented as a Python package following the Agents/sheets/ worker pattern so that it can process authentication tasks from its inbox.",
+      "acceptanceCriteria": [
+        "Create Agents/auth_agent/__init__.py with __version__ = '1.0.0'",
+        "Create Agents/auth_agent/__main__.py with CLI (--run-once, --agent-id) — copy pattern from Agents/sheets/__main__.py",
+        "Create Agents/auth_agent/config.py with frozen dataclass, env overrides, derived paths (inbox: Controller/inbox/security-team/auth-agent/, audit: ops/audit/auth-agent/) — copy pattern from Agents/sheets/config.py",
+        "Create Agents/auth_agent/logger.py with structured JSON logging to stderr — copy from Agents/sheets/logger.py",
+        "Create Agents/auth_agent/lock_manager.py using portalocker — copy from Agents/sheets/lock_manager.py",
+        "Create Agents/auth_agent/auth_task_parser.py with JSON Schema for auth tasks (operations: issue_token, refresh_token, revoke_token, validate_scopes). Fields: task_id, user_id, team_id, auth_request{auth_type, scopes[], target_user_id}, metadata{source, priority, timestamp}. Semantic checks: scopes must be subset of [spreadsheets, drive.file], revoke_token requires target_user_id",
+        "Create Agents/auth_agent/auth_report_generator.py generating report_v1 with proposed_changes (token_action, scopes, expiry), validation entries, risk assessment (scope_violation=high, token_refresh=low, revoke=medium). NEVER include actual token values",
+        "Create Agents/auth_agent/auth_audit_logger.py with SHA-256 checksums — copy pattern from Agents/sheets/sheets_audit_logger.py. CRITICAL: never log actual token values, only metadata (user_id, scopes, expiry)",
+        "Create Agents/auth_agent/auth_agent.py implementing 10-step pipeline: locate task → parse → idempotency check → lock → generate report → atomic write → archive → audit → health update → release lock",
+        "Create Agents/auth_agent/requirements.txt with: jsonschema>=4.20, portalocker>=2.8, pydantic>=2.5, pytest>=7.4, pytest-cov>=4.1, flake8>=6.0, mypy>=1.7",
+        "All modules have type hints and docstrings",
+        "Typecheck passes: python -m mypy Agents/auth_agent/ --ignore-missing-imports",
+        "Lint passes: python -m flake8 Agents/auth_agent/ --max-line-length 100"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "All 10 modules created. 38 tests passing. Typecheck and lint pass."
+    },
+    {
+      "id": "US-002",
+      "title": "auth-agent — Tests, examples, documentation",
+      "description": "As a developer, I need comprehensive tests and examples for auth-agent so the implementation is verifiable and documented.",
+      "acceptanceCriteria": [
+        "Create Agents/auth_agent/tests/__init__.py",
+        "Create Agents/auth_agent/tests/conftest.py with fixtures: SAMPLE_TASK (issue_token for user emp_042 with scopes [spreadsheets, drive.file]), tmp_project (creates inbox/audit/locks dirs), test_config (AuthAgentConfig pointing to tmp), task_file (writes sample task to inbox)",
+        "Create Agents/auth_agent/tests/test_auth_task_parser.py: valid tasks for each op type (issue_token, refresh_token, revoke_token, validate_scopes), invalid schema (missing fields, bad op), semantic violations (invalid scope, missing target for revoke)",
+        "Create Agents/auth_agent/tests/test_auth_report_generator.py: risk per op type, validation entries, error report format, atomic write with tmp+rename",
+        "Create Agents/auth_agent/tests/test_auth_audit_logger.py: checksum determinism, audit entry creation, verify no token values appear in audit output",
+        "Create Agents/auth_agent/tests/test_e2e.py: full pipeline success, empty inbox returns False, invalid task produces error report, idempotency (duplicate task skipped)",
+        "Create Agents/auth_agent/examples/task.json (sample issue_token task)",
+        "Create Agents/auth_agent/examples/report.json (sample success report)",
+        "All tests pass: python -m pytest Agents/auth_agent/tests/ -v",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "38 tests passing. Examples created. Full e2e coverage including idempotency."
+    },
+    {
+      "id": "US-003",
+      "title": "backend-agent — Python source modules",
+      "description": "As a developer, I need the backend-agent fully implemented as a Python package to validate requests, compute diffs, and route directives.",
+      "acceptanceCriteria": [
+        "Create Agents/backend_agent/__init__.py with __version__ = '1.0.0'",
+        "Create Agents/backend_agent/__main__.py with CLI — copy pattern from Agents/sheets/__main__.py",
+        "Create Agents/backend_agent/config.py (inbox: Controller/inbox/backend-team/backend-agent/, audit: ops/audit/backend-agent/)",
+        "Create Agents/backend_agent/logger.py — copy pattern from Agents/sheets/logger.py",
+        "Create Agents/backend_agent/lock_manager.py — copy from Agents/sheets/lock_manager.py",
+        "Create Agents/backend_agent/backend_task_parser.py with JSON Schema for backend tasks (operations: process_sheet_request, validate_payload, aggregate_reports, route_directive, compute_diff). Fields: task_id, user_id, team_id, request{operation, sheet_id, changes[]?, payload?, schema_name?, reports[]?, directive?}, metadata{source, priority, timestamp}. Semantic: process_sheet_request requires sheet_id+changes, validate_payload requires payload+schema_name",
+        "Create Agents/backend_agent/backend_report_generator.py with proposed_changes (validated_payload, computed_diff, routing_decision), validation entries, risk assessment (bulk_write>100cells=high, single_cell=low, schema_validation=low)",
+        "Create Agents/backend_agent/backend_audit_logger.py with SHA-256 checksums",
+        "Create Agents/backend_agent/backend_agent.py implementing 10-step pipeline",
+        "Create Agents/backend_agent/requirements.txt",
+        "All modules have type hints and docstrings",
+        "Typecheck passes",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "All 10 modules created. 44 tests passing. 5 operations with semantic validation."
+    },
+    {
+      "id": "US-004",
+      "title": "backend-agent — Tests, examples, documentation",
+      "description": "As a developer, I need tests and examples for backend-agent.",
+      "acceptanceCriteria": [
+        "Create Agents/backend_agent/tests/ with __init__.py, conftest.py (SAMPLE_TASK for process_sheet_request with sheet_id+changes), test_backend_task_parser.py, test_backend_report_generator.py, test_backend_audit_logger.py, test_e2e.py",
+        "Create Agents/backend_agent/examples/task.json (sample process_sheet_request) and report.json",
+        "All tests pass: python -m pytest Agents/backend_agent/tests/ -v",
+        "Update Agents/backend-agent/TODO.md marking BE-001, BE-002, BE-006, BE-008 as done",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "44 tests passing. Examples created. TODO.md updated."
+    },
+    {
+      "id": "US-005",
+      "title": "metrics-agent — Python source modules",
+      "description": "As a developer, I need the metrics-agent implemented to collect, aggregate, and report metrics from all agents.",
+      "acceptanceCriteria": [
+        "Create Agents/metrics_agent/__init__.py with __version__ = '1.0.0'",
+        "Create Agents/metrics_agent/__main__.py with CLI",
+        "Create Agents/metrics_agent/config.py (inbox: Controller/inbox/platform-team/metrics-agent/, audit: ops/audit/metrics-agent/, reads reports from: Controller/inbox/)",
+        "Create Agents/metrics_agent/logger.py",
+        "Create Agents/metrics_agent/lock_manager.py",
+        "Create Agents/metrics_agent/metrics_task_parser.py with JSON Schema for metrics tasks (operations: collect_agent_metrics, collect_team_metrics, compute_cost, check_slo, generate_report). Fields: task_id, user_id, team_id, metrics_request{operation, target_agent_id?, target_team_id?, period?, slo_config?}, metadata{source, priority, timestamp}. Semantic: collect_agent_metrics requires target_agent_id, collect_team_metrics requires target_team_id",
+        "Create Agents/metrics_agent/metrics_report_generator.py generating aggregated metrics: tasks_completed, tasks_failed, avg_duration_ms, p95_duration_ms, tokens_in_total, tokens_out_total, cost_eur_total, error_rate, slo_compliance. Use pricing from ops/cost_estimator.py",
+        "Create Agents/metrics_agent/metrics_audit_logger.py",
+        "Create Agents/metrics_agent/metrics_agent.py implementing 10-step pipeline",
+        "Create Agents/metrics_agent/requirements.txt",
+        "Type hints, docstrings, typecheck, lint pass"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "All 10 modules created. 42 tests passing. Model pricing: haiku/sonnet/opus EUR rates."
+    },
+    {
+      "id": "US-006",
+      "title": "metrics-agent — Tests, examples, documentation",
+      "description": "As a developer, I need tests and examples for metrics-agent.",
+      "acceptanceCriteria": [
+        "Create Agents/metrics_agent/tests/ with conftest.py and all test files (test_metrics_task_parser.py, test_metrics_report_generator.py, test_metrics_audit_logger.py, test_e2e.py)",
+        "Create Agents/metrics_agent/examples/task.json (collect_team_metrics) and report.json",
+        "All tests pass: python -m pytest Agents/metrics_agent/tests/ -v",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "42 tests passing. Examples created. SLO and cost computation covered."
+    },
+    {
+      "id": "US-007",
+      "title": "frontend-agent — Python source modules",
+      "description": "As a developer, I need the frontend-agent implemented to generate UI component proposals and handle approval workflow tasks.",
+      "acceptanceCriteria": [
+        "Create Agents/frontend_agent/__init__.py with __version__ = '1.0.0'",
+        "Create Agents/frontend_agent/__main__.py with CLI",
+        "Create Agents/frontend_agent/config.py (inbox: Controller/inbox/frontend-team/frontend-agent/, audit: ops/audit/frontend-agent/)",
+        "Create Agents/frontend_agent/logger.py",
+        "Create Agents/frontend_agent/lock_manager.py",
+        "Create Agents/frontend_agent/frontend_task_parser.py with JSON Schema for frontend tasks (operations: render_dashboard, render_approval_form, render_audit_log, validate_input, format_error). Fields: task_id, user_id, team_id, ui_request{operation, sheets[]?, change?, filters?, form_data?, schema?, error?}, metadata. Semantic: render_dashboard requires sheets[], render_approval_form requires change object",
+        "Create Agents/frontend_agent/frontend_report_generator.py with proposed_changes (component_type, html_template, actions[], approval_required), validation entries, risk (no_direct_sheets_access enforced)",
+        "Create Agents/frontend_agent/frontend_audit_logger.py",
+        "Create Agents/frontend_agent/frontend_agent.py implementing 10-step pipeline",
+        "Create Agents/frontend_agent/requirements.txt",
+        "Type hints, docstrings, typecheck, lint pass"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "All 10 modules created. 46 tests passing. No direct sheets access enforced."
+    },
+    {
+      "id": "US-008",
+      "title": "frontend-agent — Tests, examples, documentation",
+      "description": "As a developer, I need tests and examples for frontend-agent.",
+      "acceptanceCriteria": [
+        "Create Agents/frontend_agent/tests/ with conftest.py and all test files",
+        "Create Agents/frontend_agent/examples/task.json (render_dashboard) and report.json",
+        "All tests pass: python -m pytest Agents/frontend_agent/tests/ -v",
+        "Update Agents/frontend-agent/TODO.md marking FE-001 items as done",
+        "Typecheck passes"
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": "46 tests passing. Examples created. TODO.md updated."
+    },
+    {
+      "id": "US-009",
+      "title": "sheets-team lead — Python source modules",
+      "description": "As a developer, I need the sheets-team lead implemented to aggregate worker reports, resolve conflicts, and produce team reports.",
+      "acceptanceCriteria": [
+        "Create Agents/sheets_team_lead/__init__.py with __version__ = '1.0.0'",
+        "Create Agents/sheets_team_lead/__main__.py with CLI",
+        "Create Agents/sheets_team_lead/config.py (reads from: Controller/inbox/sheets-team/, writes to: Controller/inbox/sheets-team/team_lead/, audit: ops/audit/sheets-team-lead/)",
+        "Create Agents/sheets_team_lead/logger.py",
+        "Create Agents/sheets_team_lead/lock_manager.py",
+        "Create Agents/sheets_team_lead/team_task_parser.py with JSON Schema for team-lead tasks (operations: aggregate_reports, resolve_conflict, produce_team_report, redistribute_task). Fields: task_id, user_id, team_id, team_request{operation, worker_reports[]?, conflict?, failed_task?}, metadata",
+        "Create Agents/sheets_team_lead/team_report_generator.py generating team_report_v1 with aggregated_metrics{sum_duration, sum_tokens, sum_cost, task_count}, conflicts[], resolution_log[], candidate_changes[], worker_summaries[]",
+        "Create Agents/sheets_team_lead/team_audit_logger.py",
+        "Create Agents/sheets_team_lead/team_agent.py implementing 10-step pipeline adapted for team-lead role (reads multiple worker reports, aggregates, resolves conflicts)",
+        "Create Agents/sheets_team_lead/requirements.txt",
+        "Type hints, docstrings, typecheck, lint pass"
+      ],
+      "priority": 9,
+      "passes": true,
+      "notes": "All 10 modules created. 48 tests passing. Team aggregation with conflict resolution."
+    },
+    {
+      "id": "US-010",
+      "title": "sheets-team lead — Tests, examples, documentation",
+      "description": "As a developer, I need tests and examples for sheets-team lead.",
+      "acceptanceCriteria": [
+        "Create Agents/sheets_team_lead/tests/ with conftest.py and all test files",
+        "Create Agents/sheets_team_lead/examples/task.json (aggregate_reports with 2 worker reports) and report.json (team_report_v1)",
+        "All tests pass: python -m pytest Agents/sheets_team_lead/tests/ -v",
+        "Update Agents/teams/sheets-team/CHANGELOG.md with implementation entry",
+        "Typecheck passes"
+      ],
+      "priority": 10,
+      "passes": true,
+      "notes": "48 tests passing. Examples created. CHANGELOG.md updated."
+    },
+    {
+      "id": "US-011",
+      "title": "CI/CD pipeline for all agents",
+      "description": "As a developer, I need the CI workflow updated to test all agents.",
+      "acceptanceCriteria": [
+        "Update .github/workflows/ci.yml to run tests for all 6 agents: sheets, auth_agent, backend_agent, frontend_agent, metrics_agent, sheets_team_lead",
+        "Each agent tested with flake8 (--max-line-length 100), mypy (--ignore-missing-imports), pytest (-v)",
+        "Workflow triggers on changes to any Agents/** path",
+        "Python matrix: 3.10, 3.11",
+        "Each agent installs its own requirements.txt",
+        "All existing sheets tests still pass",
+        "Typecheck passes"
+      ],
+      "priority": 11,
+      "passes": true,
+      "notes": "CI updated with 6-agent matrix. Python 3.10/3.11. Triggers on Agents/** changes."
+    },
+    {
+      "id": "US-012",
+      "title": "Root package init and final verification",
+      "description": "As a developer, I need the root Agents package and documentation updated to reflect all implementations.",
+      "acceptanceCriteria": [
+        "Update Agents/__init__.py to list all available agent packages",
+        "Verify all agents importable: python -c 'import Agents.auth_agent; import Agents.backend_agent; import Agents.frontend_agent; import Agents.metrics_agent; import Agents.sheets_team_lead; import Agents.sheets'",
+        "Verify all agents runnable with --run-once (exit cleanly with no task in inbox)",
+        "Run full test suite: python -m pytest Agents/ -v --ignore=Agents/sheets-agent --ignore=Agents/auth-agent --ignore=Agents/backend-agent --ignore=Agents/frontend-agent --ignore=Agents/metrics-agent --ignore=Agents/teams",
+        "Typecheck passes"
+      ],
+      "priority": 12,
+      "passes": true,
+      "notes": "All 6 agents importable and runnable. 259 tests passing. AVAILABLE_AGENTS registry updated."
+    }
+  ]
+}

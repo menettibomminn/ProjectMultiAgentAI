@@ -1,0 +1,10 @@
+# Runtime
+jsonschema>=4.20
+portalocker>=2.8
+pydantic>=2.5
+
+# Dev / test
+pytest>=7.4
+pytest-cov>=4.1
+flake8>=6.0
+mypy>=1.7

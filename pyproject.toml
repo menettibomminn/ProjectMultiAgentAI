@@ -1,0 +1,17 @@
+[tool.mypy]
+# Strict mode — enforces complete type annotations across all modules
+strict = true
+
+# Allow third-party libraries without type stubs
+ignore_missing_imports = true
+
+# Exclude test files from strict checking (tests use dynamic fixtures/mocks)
+exclude = ["tests/", "archive/", "scripts/"]
+
+# Python version target
+python_version = "3.10"
+
+# Per-module overrides (if needed in the future)
+# [[tool.mypy.overrides]]
+# module = "some_module.*"
+# disallow_untyped_defs = false

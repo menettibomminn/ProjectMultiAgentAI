@@ -1,0 +1,15 @@
+{
+  "task_id": "metrics-001",
+  "user_id": "system",
+  "team_id": "platform-team",
+  "metrics_request": {
+    "operation": "collect_team_metrics",
+    "target_team_id": "sheets-team",
+    "period": "2026-02-23"
+  },
+  "metadata": {
+    "source": "scheduler",
+    "priority": "normal",
+    "timestamp": "2026-02-23T10:00:00Z"
+  }
+}

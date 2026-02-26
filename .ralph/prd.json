@@ -1,0 +1,127 @@
+{
+  "project": "ProjectMultiAgentAI",
+  "branchName": "ralph/fix-agent-docs",
+  "description": "Consolidare directory, standardizzare documentazione .md, unificare sheets agent, allineare requirements",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Rinominare Agents/sheets/ in Agents/sheets_agent/",
+      "description": "Come sviluppatore, voglio rinominare il package sheets in sheets_agent per allinearlo alla naming convention degli altri agenti.",
+      "acceptanceCriteria": [
+        "Copiare tutto il contenuto di Agents/sheets/ in Agents/sheets_agent/",
+        "Aggiornare tutti gli import Python in Agents/sheets_agent/*.py da 'Agents.sheets' a 'Agents.sheets_agent'",
+        "Aggiornare Agents/sheets_agent/tests/*.py con i nuovi import",
+        "Aggiornare Agents/sheets_agent/config.py con i nuovi path",
+        "Aggiornare Agents/__init__.py: AVAILABLE_AGENTS 'sheets' -> 'sheets_agent'",
+        "Aggiornare .github/workflows/ci.yml: Agents/sheets -> Agents/sheets_agent",
+        "python -m pytest Agents/sheets_agent/tests/ -v passa (41 test)",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Integrare docs sheets-agent/ in sheets_agent/ e riscrivere in italiano",
+      "description": "Come sviluppatore, voglio un unico set di docs per sheets_agent che integri le info utili da sheets-agent/ e sia tutto in italiano.",
+      "acceptanceCriteria": [
+        "Riscrivere Agents/sheets_agent/CLAUDE.md in italiano integrando skills, obiettivi e hooks da Agents/sheets-agent/CLAUDE.md",
+        "Usare formato hook standard: pre_hook, post_hook, error_hook (non Pre-processing etc.)",
+        "Integrare info utili da Agents/sheets-agent/ARCHITECTURE.md in sheets_agent/ARCHITECTURE.md",
+        "Aggiornare Agents/sheets_agent/CHANGELOG.md: prefisso task sh- (non sw-), fix typo 'e' -> 'è'",
+        "Aggiornare Agents/sheets_agent/HEALTH.md: fix typo 'e' -> 'è'",
+        "Aggiornare Agents/sheets_agent/TODO.md: prefisso sh-, fix typo 'e' -> 'è'",
+        "Aggiornare Agents/sheets_agent/MISTAKE.md: aggiungere tabella severita, fix typo 'e' -> 'è'",
+        "Tutti i frontmatter YAML: last_updated = 2026-02-24",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Eliminare directory legacy sheets/ e sheets-agent/",
+      "description": "Come sviluppatore, voglio rimuovere le vecchie directory ora che sheets_agent/ e completo.",
+      "acceptanceCriteria": [
+        "Eliminare Agents/sheets/ (vecchio path, ora in sheets_agent/)",
+        "Eliminare Agents/sheets-agent/ (dir kebab legacy, docs integrate)",
+        "Verificare che nessun file Python referenzi 'Agents.sheets' (senza _agent)",
+        "Verificare che nessun .md referenzi path 'sheets-agent/' o 'agents/sheets-agent/'",
+        "python -m pytest Agents/sheets_agent/tests/ -v passa (41 test)",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Merge docs kebab-case in snake_case per auth, backend, frontend, metrics",
+      "description": "Come sviluppatore, voglio consolidare i .md dalle directory kebab-case nelle directory snake_case.",
+      "acceptanceCriteria": [
+        "Per auth_agent: integrare info utili da Agents/auth-agent/*.md in Agents/auth_agent/*.md (priorita al contenuto snake_case, piu recente)",
+        "Per backend_agent: integrare info utili da Agents/backend-agent/*.md in Agents/backend_agent/*.md",
+        "Per frontend_agent: integrare info utili da Agents/frontend-agent/*.md in Agents/frontend_agent/*.md",
+        "Per metrics_agent: integrare info utili da Agents/metrics-agent/*.md in Agents/metrics_agent/*.md",
+        "Aggiornare riferimenti nei CLAUDE.md: path 'agents/X-agent/' -> 'Agents/X_agent/'",
+        "Eliminare Agents/auth-agent/, Agents/backend-agent/, Agents/frontend-agent/, Agents/metrics-agent/",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Creare file .md mancanti per auth_agent e metrics_agent",
+      "description": "Come sviluppatore, voglio che ogni agente abbia il set completo di 6 file .md.",
+      "acceptanceCriteria": [
+        "Creare Agents/auth_agent/TODO.md con frontmatter YAML, formato standard: PREFIX-NNN — Titolo — Priorita — Data — depends: []",
+        "Creare Agents/auth_agent/ARCHITECTURE.md con frontmatter YAML, seguendo il formato di backend_agent/ARCHITECTURE.md",
+        "Creare Agents/metrics_agent/TODO.md con frontmatter YAML e formato standard",
+        "Creare Agents/metrics_agent/ARCHITECTURE.md con frontmatter YAML e formato standard",
+        "Creare Agents/teams/sheets-team/TODO.md con frontmatter YAML e formato standard",
+        "Tutti i nuovi file in italiano con frontmatter: version 1.0.0, last_updated 2026-02-24, owner corretto, project ProjectMultiAgentAI",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Standardizzare formato e lingua di tutti i .md esistenti",
+      "description": "Come sviluppatore, voglio che tutti i .md usino lo stesso formato italiano e convenzioni uniformi.",
+      "acceptanceCriteria": [
+        "Tutti i .md in italiano (tradurre headings inglesi residui)",
+        "CHANGELOG.md: formato uniforme con Task ID, Status, Summary, Artifacts, Metrics in tutti gli agenti",
+        "HEALTH.md: schema JSON nel frontmatter + tabella aggiornamenti coerente in tutti gli agenti",
+        "MISTAKE.md: tabella severita (critical/high/medium/low) presente in TUTTI gli agenti come frontend_agent",
+        "TODO.md: formato '- [x] PREFIX-NNN — Titolo — Priorita — Data — depends: []' in tutti gli agenti",
+        "Hook naming: pre_hook, post_hook, error_hook in tutti i CLAUDE.md",
+        "Aggiornare last_updated a 2026-02-24 in tutti i frontmatter YAML",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Allineare requirements.txt con upper bounds",
+      "description": "Come sviluppatore, voglio version pinning coerente tra tutti gli agenti.",
+      "acceptanceCriteria": [
+        "Tutti i requirements.txt usano: jsonschema>=4.20,<5  portalocker>=2.8,<3  pydantic>=2.5,<3",
+        "Dev deps allineate: pytest>=7.4,<9  pytest-cov>=4.1,<6  flake8>=7.0,<8  mypy>=1.8,<2",
+        "pip install -r requirements.txt funziona per ogni agente (no version conflict)",
+        "python -m pytest Agents/ -v --ignore=Agents/teams passa (tutti i 259 test)",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

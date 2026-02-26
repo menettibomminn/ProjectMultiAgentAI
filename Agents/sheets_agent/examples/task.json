@@ -1,0 +1,21 @@
+{
+  "task_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_id": "mario.rossi@example.com",
+  "team_id": "sales",
+  "sheet": {
+    "spreadsheet_id": "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms",
+    "sheet_name": "Foglio1"
+  },
+  "requested_changes": [
+    {
+      "op": "update",
+      "range": "A2:C2",
+      "values": [["Mario", "Rossi", "100"]]
+    }
+  ],
+  "metadata": {
+    "source": "web-ui",
+    "priority": "normal",
+    "timestamp": "2026-02-23T15:00:00+01:00"
+  }
+}

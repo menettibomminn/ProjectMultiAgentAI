@@ -1,0 +1,35 @@
+{
+  "agent": "sheets-worker-01",
+  "timestamp": "2026-02-23T14:58:00Z",
+  "task_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "status": "success",
+  "summary": "update A2:C2 on Foglio1",
+  "metrics": {"duration_ms": 0},
+  "artifacts": [],
+  "next_actions": [],
+  "agent_id": "sheets-worker-01",
+  "proposed_changes": [
+    {
+      "op": "update",
+      "sheet": {
+        "spreadsheet_id": "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms",
+        "sheet_name": "Foglio1"
+      },
+      "range": "A2:C2",
+      "old_values": null,
+      "new_values": [["Mario", "Rossi", "100"]],
+      "explanation": "Update cells A2:C2 on Foglio1 with provided values",
+      "confidence": 0.95,
+      "estimated_risk": "low"
+    }
+  ],
+  "validation": [
+    {"field": "requested_changes[0].range", "ok": true, "notes": ""},
+    {"field": "requested_changes[0].op", "ok": true, "notes": ""}
+  ],
+  "risks": [],
+  "errors": [],
+  "timestamp_utc": "2026-02-23T14:58:00Z",
+  "timestamp_local": "2026-02-23T15:58:00+01:00",
+  "version": 1
+}

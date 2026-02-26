@@ -1,0 +1,15 @@
+{
+  "task_id": "auth-042",
+  "user_id": "emp_042",
+  "team_id": "security-team",
+  "auth_request": {
+    "operation": "issue_token",
+    "auth_type": "oauth_user",
+    "scopes": ["spreadsheets", "drive.file"]
+  },
+  "metadata": {
+    "source": "web-ui",
+    "priority": "normal",
+    "timestamp": "2026-02-23T10:00:00Z"
+  }
+}

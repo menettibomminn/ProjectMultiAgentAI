@@ -1,0 +1,42 @@
+{
+  "agent": "metrics-agent-01",
+  "timestamp": "2026-02-23T10:00:30Z",
+  "task_id": "metrics-001",
+  "status": "success",
+  "summary": "Aggregate metrics for team sheets-team in period 2026-02-23",
+  "metrics": {"duration_ms": 0},
+  "artifacts": [],
+  "next_actions": [],
+  "agent_id": "metrics-agent-01",
+  "proposed_changes": [
+    {
+      "operation": "collect_team_metrics",
+      "target_team_id": "sheets-team",
+      "period": "2026-02-23",
+      "aggregated_metrics": {
+        "tasks_completed": 42,
+        "tasks_failed": 2,
+        "avg_duration_ms": 350.5,
+        "p95_duration_ms": 890.0,
+        "tokens_in_total": 1250000,
+        "tokens_out_total": 620000,
+        "cost_eur_total": 12.08,
+        "error_rate": 0.045,
+        "throughput": 8.5,
+        "slo_compliance": 0.98
+      },
+      "explanation": "Aggregate metrics for team sheets-team in period 2026-02-23",
+      "confidence": 0.95,
+      "estimated_risk": "low"
+    }
+  ],
+  "validation": [
+    {"field": "metrics_request.operation", "ok": true, "notes": "Operation 'collect_team_metrics' is valid"},
+    {"field": "metrics_request.target_team_id", "ok": true, "notes": "Team 'sheets-team' specified"}
+  ],
+  "risks": [],
+  "errors": [],
+  "timestamp_utc": "2026-02-23T10:00:30Z",
+  "timestamp_local": "2026-02-23T11:00:30+01:00",
+  "version": 1
+}

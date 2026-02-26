@@ -1,0 +1,12 @@
+{
+  "task_id": "ctrl-example-001",
+  "skill": "process_inbox",
+  "input": {
+    "team": "sheets-team"
+  },
+  "metadata": {
+    "source": "api",
+    "priority": "normal",
+    "timestamp": "2026-02-24T10:00:00Z"
+  }
+}

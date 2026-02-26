@@ -1,0 +1,35 @@
+{
+  "agent": "controller",
+  "controller_id": "controller-01",
+  "task_id": "ctrl-20260224T100000Z",
+  "status": "success",
+  "summary": "Processed 3 reports, emitted 0 directives",
+  "processed_reports": [
+    {
+      "file": "20260224T093300Z_report.json",
+      "agent": "sheets-agent",
+      "task_id": "sh-042",
+      "status": "success",
+      "checksum": "a1b2c3d4e5f6..."
+    }
+  ],
+  "directives_emitted": [],
+  "state_changes": [
+    {
+      "type": "report_processed",
+      "team": "sheets-team",
+      "agent": "sheets-agent",
+      "task_id": "sh-042",
+      "status": "success",
+      "timestamp": "2026-02-24T10:00:01Z"
+    }
+  ],
+  "errors": [],
+  "metrics": {
+    "reports_processed": 3,
+    "directives_emitted": 0
+  },
+  "timestamp_utc": "2026-02-24T10:00:01Z",
+  "timestamp_local": "2026-02-24T11:00:01+01:00",
+  "version": 1
+}

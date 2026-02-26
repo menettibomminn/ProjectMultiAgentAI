@@ -1,0 +1,20 @@
+{
+  "task_id": "fe-001",
+  "user_id": "emp_042",
+  "team_id": "frontend-team",
+  "ui_request": {
+    "operation": "render_dashboard",
+    "sheets": [
+      {
+        "id": "sheet_abc",
+        "name": "Timesheet Q1",
+        "status": "synced"
+      }
+    ]
+  },
+  "metadata": {
+    "source": "web-ui",
+    "priority": "normal",
+    "timestamp": "2026-02-23T10:00:00Z"
+  }
+}

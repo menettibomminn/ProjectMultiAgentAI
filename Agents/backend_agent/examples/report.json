@@ -1,0 +1,37 @@
+{
+  "agent": "backend-agent-01",
+  "timestamp": "2026-02-23T10:00:30Z",
+  "task_id": "backend-042",
+  "status": "success",
+  "summary": "Process sheet request for sheet sheet_abc123 with 1 change(s)",
+  "metrics": {"duration_ms": 0},
+  "artifacts": [],
+  "next_actions": [],
+  "agent_id": "backend-agent-01",
+  "proposed_changes": [
+    {
+      "operation": "process_sheet_request",
+      "details": {
+        "sheet_id": "sheet_abc123",
+        "change_count": 1,
+        "changes_preview": [
+          {"cell": "B5", "old_value": "100", "new_value": "150"}
+        ]
+      },
+      "confidence": 0.90,
+      "risk": "low",
+      "explanation": "Process sheet request for sheet sheet_abc123 with 1 change(s)"
+    }
+  ],
+  "validation": [
+    {"field": "request.operation", "ok": true, "notes": "Operation 'process_sheet_request' is valid"},
+    {"field": "metadata.source", "ok": true, "notes": "Source is within allowed set"},
+    {"field": "request.sheet_id", "ok": true, "notes": "Sheet ID 'sheet_abc123' is present"},
+    {"field": "request.changes", "ok": true, "notes": "1 change(s) validated"}
+  ],
+  "risks": [],
+  "errors": [],
+  "timestamp_utc": "2026-02-23T10:00:30Z",
+  "timestamp_local": "2026-02-23T11:00:30+01:00",
+  "version": 1
+}

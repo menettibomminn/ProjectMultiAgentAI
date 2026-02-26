@@ -1,0 +1,34 @@
+{
+  "agent": "auth-agent-01",
+  "timestamp": "2026-02-23T10:00:30Z",
+  "task_id": "auth-042",
+  "status": "success",
+  "summary": "Issue new oauth_user token for user emp_042 with scopes spreadsheets, drive.file",
+  "metrics": {"duration_ms": 0},
+  "artifacts": [],
+  "next_actions": [],
+  "agent_id": "auth-agent-01",
+  "proposed_changes": [
+    {
+      "token_action": "issue_token",
+      "auth_type": "oauth_user",
+      "user_id": "emp_042",
+      "target_user_id": "emp_042",
+      "scopes": ["spreadsheets", "drive.file"],
+      "estimated_expiry_hours": 1.0,
+      "explanation": "Issue new oauth_user token for user emp_042 with scopes spreadsheets, drive.file",
+      "confidence": 0.95,
+      "estimated_risk": "low"
+    }
+  ],
+  "validation": [
+    {"field": "auth_request.operation", "ok": true, "notes": "Operation 'issue_token' is valid"},
+    {"field": "auth_request.scopes", "ok": true, "notes": "All scopes within allowed set"},
+    {"field": "auth_request.auth_type", "ok": true, "notes": "Auth type 'oauth_user' is valid"}
+  ],
+  "risks": [],
+  "errors": [],
+  "timestamp_utc": "2026-02-23T10:00:30Z",
+  "timestamp_local": "2026-02-23T11:00:30+01:00",
+  "version": 1
+}

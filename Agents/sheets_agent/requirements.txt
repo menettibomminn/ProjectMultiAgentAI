@@ -1,0 +1,13 @@
+# Sheets Worker Agent — dependencies
+jsonschema>=4.20,<5
+portalocker>=2.8,<3
+pydantic>=2.5,<3
+
+# Optional: Redis lock backend
+# redis>=5.0,<6
+
+# Dev / test
+pytest>=7.4,<9
+pytest-cov>=4.1,<6
+flake8>=6.0,<8
+mypy>=1.7,<2

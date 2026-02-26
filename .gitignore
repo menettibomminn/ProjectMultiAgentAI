@@ -12,6 +12,17 @@ obj/
 # temp
 *.tmp
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Runtime directories (created by agents)
+inbox/
+outbox/
+audit/
+
 # Secrets & credentials — NEVER commit
 .env
 .env.*
@@ -25,9 +36,16 @@ service-account*.json
 # Lock files (runtime)
 locks/
 
+# Controller runtime state (retry_state.json, system_health.json)
+Controller/state/*.json
+
 # Audit logs (local only)
 ops/logs/
 ops/audit/
+
+# Ralph runtime state
+.ralph/logs/
+.ralph/.*
 
 # OS
 Thumbs.db
