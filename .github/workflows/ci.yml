@@ -47,7 +47,7 @@ jobs:
             requirements: Agents/metrics_agent/requirements.txt
             tests: Agents/metrics_agent/tests/
             src: Agents/metrics_agent/
-- name: controller
+          - name: controller
             path: Controller
             requirements: Controller/requirements.txt
             tests: Controller/tests/
