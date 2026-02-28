@@ -54,3 +54,29 @@ class TestBuildContext:
         msgs = build_context("sys", {"task_id": "t6"}, previous_result=prev)
         assert "trace" not in msgs[1]["content"]
         assert "deep" not in msgs[1]["content"]
+
+    def test_memory_in_context(self) -> None:
+        memories = [
+            {"key": "last_sheet", "value": {"id": "abc"}},
+            {"key": "pref", "value": {"color": "blue"}},
+        ]
+        msgs = build_context(
+            "sys", {"task_id": "t7"}, agent_memory=memories
+        )
+        # system + memory + task
+        assert len(msgs) == 3
+        assert msgs[1]["role"] == "system"
+        assert "last_sheet" in msgs[1]["content"]
+        assert "abc" in msgs[1]["content"]
+
+    def test_memory_limit_5(self) -> None:
+        memories = [
+            {"key": f"k{i}", "value": {"i": i}} for i in range(10)
+        ]
+        msgs = build_context(
+            "sys", {"task_id": "t8"}, agent_memory=memories
+        )
+        mem_msg = msgs[1]["content"]
+        # Only first 5 should appear
+        assert "k4" in mem_msg
+        assert "k5" not in mem_msg

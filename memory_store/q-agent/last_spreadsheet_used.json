@@ -1,0 +1,10 @@
+{
+  "agent": "q-agent",
+  "key": "last_spreadsheet_used",
+  "value": {
+    "spreadsheet_id": "sp-abc",
+    "task_id": "queue-test-001",
+    "team_id": "sheets-team"
+  },
+  "created_at": 1772281329.2328768
+}

@@ -10,6 +10,7 @@ on:
       - "infra/**"
       - "protocol/**"
       - "llm/**"
+      - "memory/**"
       - "pyproject.toml"
       - ".github/workflows/ci.yml"
   pull_request:
@@ -21,6 +22,7 @@ on:
       - "infra/**"
       - "protocol/**"
       - "llm/**"
+      - "memory/**"
       - "pyproject.toml"
 
 jobs:
@@ -81,6 +83,11 @@ jobs:
             requirements: llm/requirements.txt
             tests: llm/tests/
             src: llm/
+          - name: memory
+            path: memory
+            requirements: memory/requirements.txt
+            tests: memory/tests/
+            src: memory/
 
     name: "${{ matrix.agent.name }} (py${{ matrix.python-version }})"
 

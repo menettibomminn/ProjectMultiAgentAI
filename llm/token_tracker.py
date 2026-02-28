@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Generator
+from typing import Any, Generator
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +26,7 @@ class TokenUsage:
     model: str = ""
     input_tokens: int = 0
     output_tokens: int = 0
+    metadata: dict[str, Any] = field(default_factory=dict)
     _recorded: bool = field(default=False, repr=False)
 
     def record(self, input_tokens: int, output_tokens: int) -> None:
@@ -66,7 +67,7 @@ def track_llm_call(
     resolved_log_dir = log_dir or Path(_DEFAULT_LOG_DIR)
     resolved_root = project_root or Path.cwd()
 
-    entry = {
+    entry: dict[str, Any] = {
         "agent": usage.agent,
         "model": usage.model,
         "input_tokens": usage.input_tokens,
@@ -74,6 +75,9 @@ def track_llm_call(
         "total_tokens": usage.total_tokens,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+
+    if usage.metadata:
+        entry["metadata"] = usage.metadata
 
     # Write JSONL
     try:

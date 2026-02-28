@@ -45,6 +45,16 @@ class SheetsAgent:
     def __init__(self, config: SheetsAgentConfig | None = None) -> None:
         self.config = config or SheetsAgentConfig.from_env()
         self.log = get_logger(self.config.agent_id)
+        self._memory: Any = None
+        try:
+            from memory.memory_factory import get_memory_store
+            from memory.memory_manager import MemoryManager
+            store = get_memory_store()
+            self._memory = MemoryManager(
+                agent=self.config.agent_id, store=store
+            )
+        except Exception:
+            pass
         lock_backend: FileLockBackend | RedisLockBackend
         if self.config.lock_backend == "redis":
             lock_backend = RedisLockBackend(
@@ -203,6 +213,22 @@ class SheetsAgent:
             # Step 7 — write report
             self._step(op_steps, "write_report")
             self._write_output(report, _queue_adapter)
+
+            # Step 7.5 — persist memory
+            if self._memory is not None and spreadsheet_id is not None:
+                try:
+                    self._memory.remember(
+                        "last_spreadsheet_used",
+                        {
+                            "spreadsheet_id": spreadsheet_id,
+                            "task_id": task_id,
+                            "team_id": team_id,
+                        },
+                    )
+                except Exception as mem_exc:
+                    self.log.warning(
+                        "Failed to persist memory: %s", mem_exc
+                    )
 
             # Step 8 — archive task (skip for queue-sourced tasks)
             if not _from_queue:

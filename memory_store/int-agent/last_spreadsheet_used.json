@@ -1,0 +1,10 @@
+{
+  "agent": "int-agent",
+  "key": "last_spreadsheet_used",
+  "value": {
+    "spreadsheet_id": "spreadsheet-abc",
+    "task_id": "int-test-001",
+    "team_id": "sheets-team"
+  },
+  "created_at": 1772281330.3358302
+}

@@ -11,11 +11,14 @@ _TASK_ALLOWED_KEYS: frozenset[str] = frozenset({
     "command", "parameters",
 })
 
+_MAX_MEMORY_ENTRIES: int = 5
+
 
 def build_context(
     system_prompt: str,
     task: dict[str, Any],
     previous_result: dict[str, Any] | None = None,
+    agent_memory: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, str]]:
     """Build a minimal message list for an LLM call.
 
@@ -28,6 +31,9 @@ def build_context(
     previous_result:
         Optional result from a prior agent step.  Only ``status`` and
         ``summary`` are forwarded.
+    agent_memory:
+        Optional list of memory entry dicts to include as context.
+        At most ``_MAX_MEMORY_ENTRIES`` are included.
 
     Returns
     -------
@@ -39,6 +45,11 @@ def build_context(
 
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
+
+    if agent_memory:
+        mem_text = _format_memory(agent_memory)
+        if mem_text:
+            messages.append({"role": "system", "content": mem_text})
 
     if previous_result is not None:
         summary = _extract_summary(previous_result)
@@ -58,6 +69,20 @@ def _extract_summary(result: dict[str, Any]) -> str:
     summary = result.get("summary")
     if summary is not None:
         parts.append(f"Summary: {summary}")
+    return "\n".join(parts)
+
+
+def _format_memory(entries: list[dict[str, Any]]) -> str:
+    """Format memory entries as a compact text block."""
+    import json
+    trimmed = entries[:_MAX_MEMORY_ENTRIES]
+    if not trimmed:
+        return ""
+    parts: list[str] = ["Agent memory:"]
+    for entry in trimmed:
+        key = entry.get("key", "?")
+        value = entry.get("value", {})
+        parts.append(f"- {key}: {json.dumps(value, ensure_ascii=False)}")
     return "\n".join(parts)
 
 

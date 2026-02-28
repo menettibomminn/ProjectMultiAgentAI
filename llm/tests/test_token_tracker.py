@@ -73,3 +73,18 @@ class TestTokenTracker:
         assert entry["input_tokens"] == 0
         assert entry["output_tokens"] == 0
         assert entry["total_tokens"] == 0
+
+    def test_metadata_in_jsonl(self, tmp_path: Path) -> None:
+        log_dir = tmp_path / "logs"
+        with track_llm_call("bot", "gpt-4", log_dir=log_dir) as usage:
+            usage.record(10, 5)
+            usage.metadata["memory_keys_used"] = ["last_spreadsheet_used"]
+
+        entry = json.loads(
+            (log_dir / "token_usage.jsonl").read_text(
+                encoding="utf-8"
+            ).strip()
+        )
+        assert entry["metadata"] == {
+            "memory_keys_used": ["last_spreadsheet_used"]
+        }

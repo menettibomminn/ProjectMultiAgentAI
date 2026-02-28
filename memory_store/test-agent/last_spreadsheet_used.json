@@ -1,0 +1,10 @@
+{
+  "agent": "test-agent",
+  "key": "last_spreadsheet_used",
+  "value": {
+    "spreadsheet_id": "abc123-spreadsheet",
+    "task_id": "test-task-001",
+    "team_id": "sales"
+  },
+  "created_at": 1772281328.9814672
+}
