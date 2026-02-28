@@ -1,0 +1,16 @@
+# ProjectMultiAgentAI — consolidated runtime dependencies
+#
+# Used by Docker build. Individual component requirements.txt files
+# remain the source of truth for per-component development.
+
+# Core (all components)
+jsonschema>=4.20,<5
+portalocker>=2.8,<3
+pydantic>=2.5,<3
+
+# Google Sheets API (required when GOOGLE_SHEETS_ENABLED=true)
+google-api-python-client>=2.100,<3
+google-auth>=2.23,<3
+
+# Redis queue adapter (required when REDIS_ENABLED=true)
+redis>=4.9,<6

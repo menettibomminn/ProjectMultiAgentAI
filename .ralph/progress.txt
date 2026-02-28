@@ -611,3 +611,18 @@ Controller/tests/test_integration.py — 11 new tests:
 - Redis lock backend
 - Orchestrator STATE.md processor
 - Performance benchmarks
+[2026-02-28T11:59:31.628285+00:00] agent_a (gpt-4): 100in/50out = 150 tokens
+[2026-02-28T11:59:31.638157+00:00] a0 (m): 0in/0out = 0 tokens
+[2026-02-28T11:59:31.639164+00:00] a1 (m): 10in/5out = 15 tokens
+[2026-02-28T11:59:31.640169+00:00] a2 (m): 20in/10out = 30 tokens
+[2026-02-28T11:59:31.671929+00:00] x (y): 0in/0out = 0 tokens
+[2026-02-28T11:59:56.233413+00:00] agent_a (gpt-4): 100in/50out = 150 tokens
+[2026-02-28T11:59:56.249384+00:00] a0 (m): 0in/0out = 0 tokens
+[2026-02-28T11:59:56.250386+00:00] a1 (m): 10in/5out = 15 tokens
+[2026-02-28T11:59:56.251385+00:00] a2 (m): 20in/10out = 30 tokens
+[2026-02-28T11:59:56.288539+00:00] x (y): 0in/0out = 0 tokens
+[2026-02-28T12:02:04.220510+00:00] agent_a (gpt-4): 100in/50out = 150 tokens
+[2026-02-28T12:02:04.237383+00:00] a0 (m): 0in/0out = 0 tokens
+[2026-02-28T12:02:04.237383+00:00] a1 (m): 10in/5out = 15 tokens
+[2026-02-28T12:02:04.238423+00:00] a2 (m): 20in/10out = 30 tokens
+[2026-02-28T12:02:04.270107+00:00] x (y): 0in/0out = 0 tokens

@@ -1,0 +1,71 @@
+# ProjectMultiAgentAI — production-like compose stack
+#
+# Usage:
+#   docker compose up --build
+#
+# Services:
+#   redis          — message queue backend
+#   orchestrator   — state management (validate & healthcheck)
+#   controller     — inbox/outbox processor
+#   sheets_agent   — Google Sheets worker agent
+
+services:
+
+  # ── Redis ──────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Orchestrator ───────────────────────────────────────────
+  orchestrator:
+    build: .
+    command: ["Orchestrator", "--run-once"]
+    environment:
+      - REDIS_ENABLED=true
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - orchestrator-data:/app/Orchestrator
+
+  # ── Controller ─────────────────────────────────────────────
+  controller:
+    build: .
+    command: ["Controller", "--run-once"]
+    environment:
+      - REDIS_ENABLED=true
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - controller-data:/app/Controller
+
+  # ── Sheets Agent ───────────────────────────────────────────
+  sheets_agent:
+    build: .
+    command: ["Agents.sheets_agent", "--run-once"]
+    environment:
+      - REDIS_ENABLED=true
+      - REDIS_URL=redis://redis:6379/0
+      - GOOGLE_SHEETS_ENABLED=false
+      # When enabling Google Sheets, mount the SA key and set:
+      # - GOOGLE_SHEETS_ENABLED=true
+      # - GOOGLE_SERVICE_ACCOUNT_PATH=/run/secrets/sa_key.json
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  redis-data:
+  orchestrator-data:
+  controller-data:

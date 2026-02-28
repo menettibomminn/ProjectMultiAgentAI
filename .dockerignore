@@ -1,0 +1,33 @@
+# Git
+.git
+.gitignore
+
+# CI / IDE
+.github
+.claude
+.ralph
+.vscode
+*.md
+
+# Python caches
+__pycache__
+*.pyc
+*.pyo
+.mypy_cache
+.pytest_cache
+.coverage
+htmlcov
+
+# Dev files
+docker-compose.dev.yml
+pyproject.toml
+*.egg-info
+
+# Secrets (never copy into image)
+secrets/
+*.pem
+*.key
+sa-*.json
+*-sa.json
+token.json
+credentials.json

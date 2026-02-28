@@ -7,6 +7,9 @@ on:
       - "Controller/**"
       - "Orchestrator/**"
       - "utils/**"
+      - "infra/**"
+      - "protocol/**"
+      - "llm/**"
       - "pyproject.toml"
       - ".github/workflows/ci.yml"
   pull_request:
@@ -15,6 +18,9 @@ on:
       - "Controller/**"
       - "Orchestrator/**"
       - "utils/**"
+      - "infra/**"
+      - "protocol/**"
+      - "llm/**"
       - "pyproject.toml"
 
 jobs:
@@ -60,6 +66,21 @@ jobs:
             requirements: Controller/requirements.txt
             tests: Orchestrator/tests/
             src: Orchestrator/
+          - name: infra
+            path: infra
+            requirements: Controller/requirements.txt
+            tests: infra/tests/
+            src: infra/
+          - name: protocol
+            path: protocol
+            requirements: protocol/requirements.txt
+            tests: protocol/tests/
+            src: protocol/
+          - name: llm
+            path: llm
+            requirements: llm/requirements.txt
+            tests: llm/tests/
+            src: llm/
 
     name: "${{ matrix.agent.name }} (py${{ matrix.python-version }})"
 

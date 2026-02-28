@@ -9,6 +9,7 @@ from .exceptions import (
     StateValidationError,
     UnauthorizedAccessError,
 )
+from .intent_router import IntentRouter, UnknownTaskTypeError
 from .models import (
     HealthStatus,
     StateChangeItem,
@@ -22,6 +23,7 @@ from .state_manager import StateManager
 
 __all__ = [
     "HealthStatus",
+    "IntentRouter",
     "Orchestrator",
     "OrchestratorError",
     "StateChangeItem",
@@ -33,5 +35,6 @@ __all__ = [
     "StateUpdateResult",
     "StateValidationError",
     "UnauthorizedAccessError",
+    "UnknownTaskTypeError",
     "ValidationResult",
 ]

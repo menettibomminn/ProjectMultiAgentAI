@@ -291,16 +291,40 @@ class SheetsAgent:
     def _write_output(
         self, report: dict[str, Any], queue_adapter: Any
     ) -> None:
-        """Write report to queue adapter or filesystem."""
+        """Write report to queue adapter or filesystem.
+
+        When the ``protocol`` package is available the raw *report* dict
+        is wrapped in an :class:`AgentMessage` envelope before
+        serialisation, producing a backward-compatible superset of the
+        original format.
+        """
+        output = report
+        try:
+            from protocol.message import AgentMessage
+            status = str(report.get("status", "error"))
+            if status not in ("success", "error", "retry"):
+                status = "error"
+            msg = AgentMessage(
+                status=status,
+                agent=self.config.agent_id,
+                action="process_task",
+                data=report,
+                error=str(report.get("errors", [""])[0])
+                if report.get("errors") else "",
+            )
+            output = msg.to_dict()
+        except ModuleNotFoundError:
+            pass
+
         if queue_adapter is not None:
             queue_adapter.push(
-                f"outbox:{self.config.team_id}", report
+                f"outbox:{self.config.team_id}", output
             )
             self.log.info(
                 "Report pushed to outbox:%s", self.config.team_id
             )
         else:
-            write_report(report, self.config.report_file)
+            write_report(output, self.config.report_file)
             self.log.info(
                 "Report written to %s", self.config.report_file
             )
