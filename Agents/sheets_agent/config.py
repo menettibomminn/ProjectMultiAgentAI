@@ -61,6 +61,17 @@ class SheetsAgentConfig:
     # Redis queue adapter (off by default — filesystem inbox/outbox)
     redis_enabled: bool = False
 
+    # Loop settings
+    loop_enabled: bool = False
+    poll_interval_seconds: int = 5
+    health_interval_cycles: int = 10
+    max_consecutive_errors: int = 5
+    shutdown_timeout_seconds: int = 30
+
+    # Execution settings
+    verify_writes: bool = False
+    execution_timeout_seconds: int = 120
+
     # Optional override for health file path (used by tests)
     health_file_override: Path | None = None
 
@@ -138,4 +149,18 @@ class SheetsAgentConfig:
             kwargs["google_sheets_enabled"] = True
         if os.environ.get("REDIS_ENABLED", "").lower() == "true":
             kwargs["redis_enabled"] = True
+        if os.environ.get("SHEETS_LOOP_ENABLED", "").lower() == "true":
+            kwargs["loop_enabled"] = True
+        if v := os.environ.get("SHEETS_POLL_INTERVAL"):
+            kwargs["poll_interval_seconds"] = int(v)
+        if v := os.environ.get("SHEETS_HEALTH_INTERVAL"):
+            kwargs["health_interval_cycles"] = int(v)
+        if v := os.environ.get("SHEETS_MAX_CONSECUTIVE_ERRORS"):
+            kwargs["max_consecutive_errors"] = int(v)
+        if v := os.environ.get("SHEETS_SHUTDOWN_TIMEOUT"):
+            kwargs["shutdown_timeout_seconds"] = int(v)
+        if os.environ.get("SHEETS_VERIFY_WRITES", "").lower() == "true":
+            kwargs["verify_writes"] = True
+        if v := os.environ.get("SHEETS_EXECUTION_TIMEOUT"):
+            kwargs["execution_timeout_seconds"] = int(v)
         return cls(**kwargs)

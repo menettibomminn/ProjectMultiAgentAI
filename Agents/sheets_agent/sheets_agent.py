@@ -310,6 +310,192 @@ class SheetsAgent:
                 error_count_delta=1 if error else 0,
             )
 
+    def run_once_from_dict(self, task_dict: dict[str, Any]) -> bool:
+        """Process a pre-parsed task dict (from queue adapter).
+
+        Unlike :meth:`run_once`, the task is already popped from the queue
+        externally (e.g. by :class:`AgentLoop`).  When
+        ``GOOGLE_SHEETS_ENABLED=true``, the :class:`ExecutionEngine` is used
+        for structured execution with optional read-back verification.
+        """
+        t0 = time.monotonic()
+        op_steps: list[dict[str, Any]] = []
+        task_id = "unknown"
+        user_id = "unknown"
+        team_id = self.config.team_id
+        spreadsheet_id: str | None = None
+        report: dict[str, Any] | None = None
+        error: Exception | None = None
+
+        from infra.adapter_factory import get_queue_adapter
+        _queue_adapter = get_queue_adapter()
+
+        try:
+            # Step 1 — validate
+            self._step(op_steps, "parse_task")
+            result = validate_task(task_dict)
+            if not result.ok or result.task is None:
+                task_id = str(task_dict.get("task_id", "unknown"))
+                self.log.error("Task validation failed: %s", result.errors)
+                report = generate_error_report(
+                    task_id=task_id,
+                    agent_id=self.config.agent_id,
+                    errors=result.errors,
+                )
+                self._write_output(report, _queue_adapter)
+                return False
+
+            task = result.task
+            task_id = task["task_id"]
+            user_id = task["user_id"]
+            team_id = task.get("team_id", self.config.team_id)
+            spreadsheet_id = task["sheet"]["spreadsheet_id"]
+
+            self.log = get_logger(self.config.agent_id, task_id)
+            self.log.info("Processing task %s (from dict)", task_id)
+
+            # Step 2 — acquire lock
+            self._step(op_steps, "acquire_lock")
+            self._lock_mgr.acquire(spreadsheet_id, task_id)
+            self.log.info("Lock acquired for spreadsheet %s", spreadsheet_id)
+
+            # Step 3 — rate limit check
+            self._step(op_steps, "rate_limit_check")
+            self._rate_limiter.acquire()
+            self.log.info("Rate limit passed — slot acquired")
+
+            # Step 4 — generate report
+            self._step(op_steps, "generate_report")
+            report = generate_report(
+                task=task,
+                agent_id=self.config.agent_id,
+                version=self.config.version,
+            )
+
+            # Step 5 — execute via engine (if enabled)
+            if self.config.google_sheets_enabled:
+                self._step(op_steps, "execute_changes")
+                from Agents.sheets_agent.execution_engine import (
+                    ExecutionEngine,
+                )
+                engine = ExecutionEngine(
+                    rate_limiter=self._rate_limiter,
+                    verify_writes=self.config.verify_writes,
+                )
+                exec_result = engine.execute(task)
+                report["execution_results"] = [
+                    cr.to_dict() for cr in exec_result.changes
+                ]
+                if not exec_result.all_success:
+                    report["status"] = "error"
+                    for cr in exec_result.changes:
+                        if cr.status == "error":
+                            report["errors"].append(cr.error_message)
+                    self.log.warning(
+                        "Execution had failure(s): %d/%d",
+                        len([c for c in exec_result.changes
+                             if c.status != "success"]),
+                        len(exec_result.changes),
+                    )
+                else:
+                    self.log.info(
+                        "All %d change(s) executed successfully",
+                        len(exec_result.changes),
+                    )
+
+            # Step 6 — write report
+            self._step(op_steps, "write_report")
+            self._write_output(report, _queue_adapter)
+
+            # Step 6.5 — persist memory
+            if self._memory is not None and spreadsheet_id is not None:
+                try:
+                    self._memory.remember(
+                        "last_spreadsheet_used",
+                        {
+                            "spreadsheet_id": spreadsheet_id,
+                            "task_id": task_id,
+                            "team_id": team_id,
+                        },
+                    )
+                except Exception as mem_exc:
+                    self.log.warning(
+                        "Failed to persist memory: %s", mem_exc
+                    )
+
+            self.log.info("Task %s completed successfully", task_id)
+            return True
+
+        except LockError as exc:
+            error = exc
+            self.log.error("Lock acquisition failed: %s", exc)
+            report = generate_error_report(
+                task_id=task_id,
+                agent_id=self.config.agent_id,
+                errors=[f"Lock error: {exc}"],
+            )
+            self._write_output(report, _queue_adapter)
+            return False
+
+        except RateLimitError as exc:
+            error = exc
+            self.log.error("Rate limit exceeded: %s", exc)
+            report = generate_error_report(
+                task_id=task_id,
+                agent_id=self.config.agent_id,
+                errors=[f"Rate limit error: {exc}"],
+            )
+            self._write_output(report, _queue_adapter)
+            return False
+
+        except Exception as exc:
+            error = exc
+            self.log.error("Unexpected error: %s", exc, exc_info=True)
+            report = generate_error_report(
+                task_id=task_id,
+                agent_id=self.config.agent_id,
+                errors=[f"Internal error: {exc}"],
+            )
+            try:
+                self._write_output(report, _queue_adapter)
+            except OSError:
+                pass
+            return False
+
+        finally:
+            duration_ms = (time.monotonic() - t0) * 1000
+            self._step(op_steps, "finalize")
+
+            # Release lock
+            if spreadsheet_id and self._lock_mgr.is_held(spreadsheet_id):
+                self._lock_mgr.release(spreadsheet_id)
+                self.log.info("Lock released for %s", spreadsheet_id)
+
+            # Write audit
+            try:
+                audit_path = write_audit_entry(
+                    audit_dir=self.config.audit_dir,
+                    task_id=task_id,
+                    agent_id=self.config.agent_id,
+                    user_id=user_id,
+                    team_id=team_id,
+                    config_version=self.config.version,
+                    op_steps=op_steps,
+                    report=report,
+                    error=error,
+                    duration_ms=duration_ms,
+                )
+                self.log.info("Audit written to %s", audit_path)
+            except OSError as exc:
+                self.log.error("Failed to write audit: %s", exc)
+
+            # Update health
+            self._update_health(
+                task_id=task_id,
+                status="healthy" if error is None else "degraded",
+                error_count_delta=1 if error else 0,
+            )
+
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------

@@ -1,0 +1,10 @@
+{
+  "agent": "real-agent",
+  "key": "last_spreadsheet_used",
+  "value": {
+    "spreadsheet_id": "sp-real",
+    "task_id": "real-write-001",
+    "team_id": "sheets-team"
+  },
+  "created_at": 1772281929.3639216
+}
