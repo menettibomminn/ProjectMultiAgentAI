@@ -3,6 +3,10 @@ jsonschema>=4.20,<5
 portalocker>=2.8,<3
 pydantic>=2.5,<3
 
+# Google Sheets API (required when GOOGLE_SHEETS_ENABLED=true)
+google-api-python-client>=2.100,<3
+google-auth>=2.23,<3
+
 # Optional: Redis lock backend
 # redis>=5.0,<6
 

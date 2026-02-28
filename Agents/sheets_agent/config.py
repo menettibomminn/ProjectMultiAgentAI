@@ -55,6 +55,9 @@ class SheetsAgentConfig:
     rate_max_wait_seconds: float = 60.0
     rate_jitter: bool = True
 
+    # Google Sheets API execution (off by default — simulation only)
+    google_sheets_enabled: bool = False
+
     # Optional override for health file path (used by tests)
     health_file_override: Path | None = None
 
@@ -128,4 +131,6 @@ class SheetsAgentConfig:
             kwargs["rate_burst_size"] = int(v)
         if v := os.environ.get("SHEETS_RATE_MAX_WAIT"):
             kwargs["rate_max_wait_seconds"] = float(v)
+        if os.environ.get("GOOGLE_SHEETS_ENABLED", "").lower() == "true":
+            kwargs["google_sheets_enabled"] = True
         return cls(**kwargs)
