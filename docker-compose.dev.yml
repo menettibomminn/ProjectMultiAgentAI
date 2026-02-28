@@ -1,0 +1,23 @@
+# Development-only: spin up Redis for local queue testing.
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up -d
+#
+# Then run agents with:
+#   REDIS_ENABLED=true REDIS_URL=redis://localhost:6379/0 python -m Agents.sheets_agent --run-once
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  redis-data:

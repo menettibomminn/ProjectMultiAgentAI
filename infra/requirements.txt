@@ -1,0 +1,4 @@
+# Infrastructure adapters — dependencies
+
+# Redis client (required when REDIS_ENABLED=true)
+redis>=4.9,<6
