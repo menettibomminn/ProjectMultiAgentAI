@@ -1,0 +1,3 @@
+# Google Sheets client — dependencies
+google-api-python-client>=2.100,<3
+google-auth>=2.23,<3
