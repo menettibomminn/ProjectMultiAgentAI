@@ -33,7 +33,10 @@ from Agents.sheets_agent.sheets_report_generator import (
     generate_report,
     write_report,
 )
-from Agents.sheets_agent.sheets_task_parser import parse_task_file
+from Agents.sheets_agent.sheets_task_parser import (
+    parse_task_file,
+    validate_task,
+)
 
 
 class SheetsAgent:
@@ -82,32 +85,62 @@ class SheetsAgent:
         spreadsheet_id: str | None = None
         report: dict[str, Any] | None = None
         error: Exception | None = None
+        _from_queue = False
+        _queue_adapter: Any = None
 
         try:
             # Step 1 — locate task
             self._step(op_steps, "locate_task")
-            task_path = self.config.task_file
-            if not task_path.exists():
-                self.log.info("No task found at %s — nothing to do", task_path)
-                self._update_health(
-                    task_id="none",
-                    status="healthy",
-                    error_count_delta=0,
+
+            _queue_task: dict[str, Any] | None = None
+            if self.config.redis_enabled:
+                from infra.adapter_factory import get_queue_adapter
+                _queue_adapter = get_queue_adapter()
+                _queue_task = _queue_adapter.pop(
+                    f"inbox:{self.config.team_id}"
                 )
-                return False
+                if _queue_task is None:
+                    self.log.info("No task in queue — nothing to do")
+                    self._update_health(
+                        task_id="none",
+                        status="healthy",
+                        error_count_delta=0,
+                    )
+                    return False
+                _from_queue = True
+            else:
+                task_path = self.config.task_file
+                if not task_path.exists():
+                    self.log.info(
+                        "No task found at %s — nothing to do", task_path
+                    )
+                    self._update_health(
+                        task_id="none",
+                        status="healthy",
+                        error_count_delta=0,
+                    )
+                    return False
 
             # Step 2 — parse & validate
             self._step(op_steps, "parse_task")
-            result = parse_task_file(task_path)
+            if _from_queue:
+                assert _queue_task is not None
+                result = validate_task(_queue_task)
+            else:
+                result = parse_task_file(self.config.task_file)
+
             if not result.ok or result.task is None:
                 self.log.error("Task validation failed: %s", result.errors)
-                task_id = self._extract_task_id(task_path)
+                if _from_queue and _queue_task is not None:
+                    task_id = str(_queue_task.get("task_id", "unknown"))
+                else:
+                    task_id = self._extract_task_id(self.config.task_file)
                 report = generate_error_report(
                     task_id=task_id,
                     agent_id=self.config.agent_id,
                     errors=result.errors,
                 )
-                write_report(report, self.config.report_file)
+                self._write_output(report, _queue_adapter)
                 self._step(op_steps, "write_error_report")
                 return False
 
@@ -169,13 +202,14 @@ class SheetsAgent:
 
             # Step 7 — write report
             self._step(op_steps, "write_report")
-            write_report(report, self.config.report_file)
-            self.log.info("Report written to %s", self.config.report_file)
+            self._write_output(report, _queue_adapter)
 
-            # Step 8 — archive task (rename to task.done.json)
-            self._step(op_steps, "archive_task")
-            done_path = task_path.with_suffix(".done.json")
-            task_path.rename(done_path)
+            # Step 8 — archive task (skip for queue-sourced tasks)
+            if not _from_queue:
+                self._step(op_steps, "archive_task")
+                task_path = self.config.task_file
+                done_path = task_path.with_suffix(".done.json")
+                task_path.rename(done_path)
 
             self.log.info("Task %s completed successfully", task_id)
             return True
@@ -188,7 +222,7 @@ class SheetsAgent:
                 agent_id=self.config.agent_id,
                 errors=[f"Lock error: {exc}"],
             )
-            write_report(report, self.config.report_file)
+            self._write_output(report, _queue_adapter)
             return False
 
         except RateLimitError as exc:
@@ -199,7 +233,7 @@ class SheetsAgent:
                 agent_id=self.config.agent_id,
                 errors=[f"Rate limit error: {exc}"],
             )
-            write_report(report, self.config.report_file)
+            self._write_output(report, _queue_adapter)
             return False
 
         except Exception as exc:
@@ -211,7 +245,7 @@ class SheetsAgent:
                 errors=[f"Internal error: {exc}"],
             )
             try:
-                write_report(report, self.config.report_file)
+                self._write_output(report, _queue_adapter)
             except OSError:
                 pass
             return False
@@ -253,6 +287,23 @@ class SheetsAgent:
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
+
+    def _write_output(
+        self, report: dict[str, Any], queue_adapter: Any
+    ) -> None:
+        """Write report to queue adapter or filesystem."""
+        if queue_adapter is not None:
+            queue_adapter.push(
+                f"outbox:{self.config.team_id}", report
+            )
+            self.log.info(
+                "Report pushed to outbox:%s", self.config.team_id
+            )
+        else:
+            write_report(report, self.config.report_file)
+            self.log.info(
+                "Report written to %s", self.config.report_file
+            )
 
     def _execute_changes(self, task: dict[str, Any]) -> list[dict[str, Any]]:
         """Execute validated changes via Google Sheets API.

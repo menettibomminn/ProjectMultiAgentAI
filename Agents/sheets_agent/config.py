@@ -58,6 +58,9 @@ class SheetsAgentConfig:
     # Google Sheets API execution (off by default — simulation only)
     google_sheets_enabled: bool = False
 
+    # Redis queue adapter (off by default — filesystem inbox/outbox)
+    redis_enabled: bool = False
+
     # Optional override for health file path (used by tests)
     health_file_override: Path | None = None
 
@@ -133,4 +136,6 @@ class SheetsAgentConfig:
             kwargs["rate_max_wait_seconds"] = float(v)
         if os.environ.get("GOOGLE_SHEETS_ENABLED", "").lower() == "true":
             kwargs["google_sheets_enabled"] = True
+        if os.environ.get("REDIS_ENABLED", "").lower() == "true":
+            kwargs["redis_enabled"] = True
         return cls(**kwargs)
