@@ -6,7 +6,9 @@ proposal report, writes audit log, updates HEALTH.md, and exits.
 Usage:
     python -m Agents.sheets_agent --run-once
 
-This agent NEVER modifies Google Sheets. It produces proposed_changes only.
+When GOOGLE_SHEETS_ENABLED=true, the agent also executes validated changes
+against the live Google Sheets API via utils.sheets_client.SheetsClient.
+Otherwise it produces proposed_changes only (default behaviour).
 """
 from __future__ import annotations
 
@@ -145,6 +147,26 @@ class SheetsAgent:
                 version=self.config.version,
             )
 
+            # Step 6.5 — execute changes via Google Sheets API (if enabled)
+            if self.config.google_sheets_enabled:
+                self._step(op_steps, "execute_changes")
+                exec_results = self._execute_changes(task)
+                report["execution_results"] = exec_results
+                failed = [r for r in exec_results if r["status"] == "error"]
+                if failed:
+                    report["status"] = "error"
+                    for f in failed:
+                        report["errors"].append(f["error_message"])
+                    self.log.warning(
+                        "Execution had %d failure(s) out of %d change(s)",
+                        len(failed),
+                        len(exec_results),
+                    )
+                else:
+                    self.log.info(
+                        "All %d change(s) executed successfully", len(exec_results)
+                    )
+
             # Step 7 — write report
             self._step(op_steps, "write_report")
             write_report(report, self.config.report_file)
@@ -231,6 +253,78 @@ class SheetsAgent:
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
+
+    def _execute_changes(self, task: dict[str, Any]) -> list[dict[str, Any]]:
+        """Execute validated changes via Google Sheets API.
+
+        Lazily imports ``utils.sheets_client`` so that the google libraries
+        are only required when ``GOOGLE_SHEETS_ENABLED=true``.
+
+        Returns a list of per-change result dicts compatible with the report
+        schema (keys: op, range, status, data/updated_cells/cleared_range,
+        error_code, error_message, retries_used).
+        """
+        from utils.sheets_client import (  # lazy import
+            SheetsClient,
+            SheetsClientError,
+        )
+
+        spreadsheet_id: str = task["sheet"]["spreadsheet_id"]
+        results: list[dict[str, Any]] = []
+
+        try:
+            client = SheetsClient()  # uses GOOGLE_SERVICE_ACCOUNT_PATH
+        except SheetsClientError as exc:
+            self.log.error("Cannot initialise SheetsClient: %s", exc)
+            for change in task["requested_changes"]:
+                results.append({
+                    "op": change["op"],
+                    "range": change["range"],
+                    "status": "error",
+                    "error_code": exc.code,
+                    "error_message": str(exc),
+                    "retries_used": 0,
+                })
+            return results
+
+        for change in task["requested_changes"]:
+            op: str = change["op"]
+            range_name: str = change["range"]
+            entry: dict[str, Any] = {"op": op, "range": range_name}
+
+            try:
+                if op in ("update", "append_row"):
+                    resp = client.write_range(
+                        spreadsheet_id, range_name, change["values"]
+                    )
+                    entry["status"] = resp.status.value
+                    entry["updated_cells"] = resp.updated_cells
+                    entry["retries_used"] = resp.retries_used
+
+                elif op in ("clear_range", "delete_row"):
+                    resp = client.clear_range(spreadsheet_id, range_name)
+                    entry["status"] = resp.status.value
+                    entry["cleared_range"] = resp.cleared_range
+                    entry["retries_used"] = resp.retries_used
+
+                else:
+                    entry["status"] = "error"
+                    entry["error_code"] = 0
+                    entry["error_message"] = f"Unsupported op: {op}"
+                    entry["retries_used"] = 0
+
+            except SheetsClientError as exc:
+                entry["status"] = "error"
+                entry["error_code"] = exc.code
+                entry["error_message"] = str(exc)
+                entry["retries_used"] = 0
+                self.log.error(
+                    "Sheets API error for %s %s: %s", op, range_name, exc
+                )
+
+            results.append(entry)
+
+        return results
 
     @staticmethod
     def _step(steps: list[dict[str, Any]], name: str) -> None:
